@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 function IconPhone(props: { className?: string }) {
   return (
@@ -21,9 +22,8 @@ function IconLock(props: { className?: string }) {
   )
 }
 
-export default function ConnexionPage(props: {
-  onSwitchMode: (mode: 'inscription' | 'connexion') => void
-}) {
+export default function ConnexionPage() {
+  const navigate = useNavigate()
   const [telephone, setTelephone] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
 
@@ -49,6 +49,7 @@ export default function ConnexionPage(props: {
                 if (!canSubmit) return
                 // TODO: appeler votre API de connexion
                 console.log({ telephone, motDePasse })
+                navigate('/dashboard')
               }}
             >
               <label className="flex flex-col gap-2">
@@ -91,7 +92,7 @@ export default function ConnexionPage(props: {
               </div>
               <button
                 type="button"
-                onClick={() => props.onSwitchMode('inscription')}
+                onClick={() => navigate('/inscription')}
                 className="mt-3 text-center text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300"
               >
                 S&apos;inscrire
@@ -113,7 +114,7 @@ export default function ConnexionPage(props: {
               <div className="mt-8 flex justify-center">
                 <button
                   type="button"
-                  onClick={() => props.onSwitchMode('inscription')}
+                  onClick={() => navigate('/inscription')}
                   className="rounded-full border-2 border-white bg-transparent px-10 py-2 text-sm font-semibold text-white hover:bg-white/10"
                 >
                   Créer un compte

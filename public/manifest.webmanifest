@@ -1,0 +1,17 @@
+{
+  "name": "CamerRideShare",
+  "short_name": "CamerRideShare",
+  "description": "Plateforme d'investissement participatif pour motos-taxis au Cameroun.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
+

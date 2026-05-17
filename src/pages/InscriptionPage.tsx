@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 function IconUser(props: { className?: string }) {
   return (
@@ -62,9 +63,8 @@ function IconApple(props: { className?: string }) {
   )
 }
 
-export default function InscriptionPage(props: {
-  onSwitchMode: (mode: 'inscription' | 'connexion') => void
-}) {
+export default function InscriptionPage() {
+  const navigate = useNavigate()
   const [nom, setNom] = useState('')
   const [telephone, setTelephone] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
@@ -184,7 +184,7 @@ export default function InscriptionPage(props: {
                 <button
                   type="button"
                   className="rounded-full border-2 border-white bg-transparent px-10 py-2 text-sm font-semibold text-white hover:bg-white/10"
-                  onClick={() => props.onSwitchMode('connexion')}
+                  onClick={() => navigate('/connexion')}
                 >
                   Connexion
                 </button>
