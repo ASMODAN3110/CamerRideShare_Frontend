@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -49,14 +55,7 @@ h1 {
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
   font-family: inherit;
-  background-color: transparent;
-  color: inherit;
   cursor: pointer;
   transition: border-color 0.25s;
 }
@@ -68,12 +67,4 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f172a;
-    --fg: #e5e7eb;
-    --link: #818cf8;
-    --link-hover: #a5b4fc;
-    --muted: #94a3b8;
-  }
-}
+/* Le thème sombre/blanc est piloté uniquement par la classe `dark` sur <html>. */
