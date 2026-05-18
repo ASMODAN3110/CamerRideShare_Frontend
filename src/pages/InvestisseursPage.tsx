@@ -20,6 +20,7 @@ import {
   YAxis,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
+import AnimatedContent from '../components/AnimatedContent'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -254,12 +255,11 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
   )
 
   // Aggregate KPIs
-  const totalInvesti = '16.2M XAF'
   const totalActifs = mockInvestors.filter((i) => i.status === 'actif').length
   const totalMotos = mockInvestors.reduce((acc, i) => acc + i.motos, 0)
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -438,7 +438,7 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
                             fontSize: '12px',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                           }}
-                          formatter={(v: number) => [`${v}%`, 'ROI']}
+                          formatter={(v: unknown) => [`${typeof v === 'number' ? v : ''}%`, 'ROI']}
                         />
                         <Line
                           type="monotone"
@@ -492,6 +492,6 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
           </div>
         </main>
       </div>
-    </div>
+    </AnimatedContent>
   )
 }

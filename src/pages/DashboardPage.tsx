@@ -25,6 +25,7 @@ import {
   Line,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
+import AnimatedContent from '../components/AnimatedContent'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Progress } from '../components/ui/progress'
@@ -585,7 +586,7 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
   })()
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
       <div className="flex">
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={props.theme} onToggleTheme={props.onToggleTheme} />
 
@@ -621,7 +622,7 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
           </div>
         </main>
       </div>
-    </div>
+    </AnimatedContent>
   )
 }
 

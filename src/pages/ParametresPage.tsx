@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Bell,
   Camera,
-  ChevronDown,
   Lock,
   Mail,
   MoreVertical,
@@ -14,6 +13,7 @@ import {
   User,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import AnimatedContent from '../components/AnimatedContent'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -438,7 +438,7 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
   const showProfil        = activeTab === 'profil'        || showAll
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24 dark:bg-slate-950">
+    <AnimatedContent className="min-h-screen bg-slate-50 pb-24 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -510,6 +510,6 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
           Enregistrer les modifications
         </button>
       </div>
-    </div>
+    </AnimatedContent>
   )
 }

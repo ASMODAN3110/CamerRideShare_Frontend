@@ -1,5 +1,3 @@
-import type { HTMLAttributes } from 'react'
-
 type SwitchProps = {
   checked: boolean
   onChange: (checked: boolean) => void

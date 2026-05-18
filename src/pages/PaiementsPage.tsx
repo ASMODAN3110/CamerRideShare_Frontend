@@ -10,6 +10,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import AnimatedContent from '../components/AnimatedContent'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -154,7 +155,7 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
   })
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -380,6 +381,6 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
           </Card>
         </main>
       </div>
-    </div>
+    </AnimatedContent>
   )
 }
