@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import AnimatedContent from '../components/AnimatedContent'
+import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent } from '../components/ui/card'
@@ -185,13 +186,13 @@ function MotoCard({ moto }: { moto: Moto }) {
         {/* Footer */}
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800/60">
           <span className="truncate text-xs text-slate-400 dark:text-slate-500">{moto.info}</span>
-          <button
+          <Button
             type="button"
             className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
           >
             Détails
             <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -241,13 +242,13 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
                 Supervision et maintenance de votre flotte de motos-taxis.
               </p>
             </div>
-            <button
+            <Button
               type="button"
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
             >
               <Plus className="h-4 w-4" />
               Ajouter une moto
-            </button>
+            </Button>
           </div>
 
           {/* ── Stat cards ── */}
@@ -333,13 +334,13 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
             </select>
 
             {/* Advanced filter button */}
-            <button
+            <Button
               type="button"
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400 dark:hover:bg-slate-800"
               aria-label="Filtres avancés"
             >
               <Filter className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
 
           {/* ── Moto Grid ── */}
@@ -365,18 +366,18 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
               <span className="font-semibold text-slate-700 dark:text-slate-200">124</span> motos
             </p>
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 Précédent
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
               >
                 Suivant
-              </button>
+              </Button>
             </div>
           </div>
         </main>

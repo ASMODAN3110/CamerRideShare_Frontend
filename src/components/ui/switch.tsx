@@ -1,3 +1,5 @@
+import { Button } from './button'
+
 type SwitchProps = {
   checked: boolean
   onChange: (checked: boolean) => void
@@ -8,7 +10,7 @@ type SwitchProps = {
 
 export function Switch({ checked, onChange, id, className, 'aria-label': ariaLabel }: SwitchProps) {
   return (
-    <button
+    <Button
       id={id}
       type="button"
       role="switch"
@@ -31,6 +33,6 @@ export function Switch({ checked, onChange, id, className, 'aria-label': ariaLab
           checked ? 'translate-x-5' : 'translate-x-0',
         ].join(' ')}
       />
-    </button>
+    </Button>
   )
 }

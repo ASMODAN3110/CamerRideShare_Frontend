@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import AnimatedContent from '../components/AnimatedContent'
+import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -109,13 +110,13 @@ function SectionProfilAdmin() {
               />
               <AvatarFallback>GP</AvatarFallback>
             </Avatar>
-            <button
+            <Button
               type="button"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
             >
               <Camera className="h-3.5 w-3.5" />
               Changer l'avatar
-            </button>
+            </Button>
           </div>
 
           {/* Fields col */}
@@ -154,12 +155,12 @@ function SectionProfilAdmin() {
                     className="pl-10"
                   />
                 </div>
-                <button
+                <Button
                   type="button"
                   className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Modifier
-                </button>
+                </Button>
               </div>
             </Field>
           </div>
@@ -255,13 +256,13 @@ function SectionAcces() {
               Administrateurs ayant accès au portail.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             <Plus className="h-3.5 w-3.5" />
             Ajouter un Admin
-          </button>
+          </Button>
         </div>
       </CardHeader>
 
@@ -296,13 +297,13 @@ function SectionAcces() {
                 <div className="text-xs text-slate-400 dark:text-slate-500">{admin.lastSeen}</div>
               </div>
 
-              <button
+              <Button
                 type="button"
                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400 dark:hover:bg-slate-800"
                 aria-label={`Options pour ${admin.nom}`}
               >
                 <MoreVertical className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -438,7 +439,7 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
   const showProfil        = activeTab === 'profil'        || showAll
 
   return (
-    <AnimatedContent className="min-h-screen bg-slate-50 pb-24 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
+    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -447,7 +448,7 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
           onToggleTheme={onToggleTheme}
         />
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 pb-28">
           {/* ── Header ── */}
           <div className="mb-6">
             <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Paramètres du Système</h1>
@@ -462,7 +463,7 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
               const Icon = tab.Icon
               const active = activeTab === tab.id
               return (
-                <button
+                <Button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
@@ -475,7 +476,7 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="hidden sm:inline">{tab.label}</span>
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -491,25 +492,27 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
       </div>
 
       {/* ── Sticky footer ── */}
-      <div className="fixed bottom-0 right-0 z-40 flex items-center gap-3 border-t border-slate-200/70 bg-white/90 px-6 py-4 backdrop-blur dark:border-slate-800/60 dark:bg-slate-900/90"
-           style={{ left: '288px' }}
+      <div
+        className="fixed bottom-0 right-0 z-40 flex items-center gap-3 border-t border-slate-200/70 bg-white/90 px-6 py-4 backdrop-blur dark:border-slate-800/60 dark:bg-slate-900/90"
+        style={{ left: '288px' }}
       >
         <div className="flex-1" />
-        <button
+        <Button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
         >
           <RotateCcw className="h-4 w-4" />
           Réinitialiser
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
         >
           <Save className="h-4 w-4" />
           Enregistrer les modifications
-        </button>
+        </Button>
       </div>
+
     </AnimatedContent>
   )
 }

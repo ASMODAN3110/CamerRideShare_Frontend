@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AnimatedContent from '../components/AnimatedContent'
+import { Button } from '../components/ui/button'
 
 function IconUser(props: { className?: string }) {
   return (
@@ -137,37 +138,37 @@ export default function InscriptionPage() {
                 </div>
               </label>
 
-              <button
+              <Button
                 type="submit"
                 disabled={!canSubmit}
                 className="mt-2 rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-blue-700 disabled:text-white disabled:opacity-100 dark:bg-blue-900 dark:hover:bg-blue-800 dark:disabled:bg-blue-900"
               >
                 S&apos;inscrire
-              </button>
+              </Button>
 
               <div className="mt-1 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">
                 OU CONTINUER AVEC
               </div>
 
               <div className="mt-3 flex items-center justify-center gap-4">
-                <button
+                <Button
                   type="button"
                   className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   <IconGoogle className="h-5 w-5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   <IconFacebook className="h-5 w-5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   <IconApple className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
             </form>
           </AnimatedContent>
@@ -190,13 +191,13 @@ export default function InscriptionPage() {
                 Vous avez déjà un compte ? Connectez-vous pour continuer à partager vos trajets.
               </p>
               <div className="mt-8 flex justify-center">
-                <button
+                <Button
                   type="button"
                   className="rounded-full border-2 border-white bg-transparent px-10 py-2 text-sm font-semibold text-white hover:bg-white/10"
                   onClick={() => navigate('/connexion')}
                 >
                   Connexion
-                </button>
+                </Button>
               </div>
             </div>
           </AnimatedContent>

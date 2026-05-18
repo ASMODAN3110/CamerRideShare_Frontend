@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AnimatedContent from '../components/AnimatedContent'
+import { Button } from '../components/ui/button'
 
 function IconPhone(props: { className?: string }) {
   return (
@@ -82,24 +83,24 @@ export default function ConnexionPage() {
                 </div>
               </label>
 
-              <button
+              <Button
                 type="submit"
                 disabled={!canSubmit}
                 className="mt-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600 disabled:text-white disabled:opacity-100"
               >
                 Se connecter
-              </button>
+              </Button>
 
               <div className="mt-6 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">
                 PAS ENCORE INSCRIT ?
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => navigate('/inscription')}
                 className="mt-3 text-center text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300"
               >
                 S&apos;inscrire
-              </button>
+              </Button>
             </form>
           </AnimatedContent>
 
@@ -121,13 +122,13 @@ export default function ConnexionPage() {
               </p>
 
               <div className="mt-8 flex justify-center">
-                <button
+                <Button
                   type="button"
                   onClick={() => navigate('/inscription')}
                   className="rounded-full border-2 border-white bg-transparent px-10 py-2 text-sm font-semibold text-white hover:bg-white/10"
                 >
                   Créer un compte
-                </button>
+                </Button>
               </div>
             </div>
           </AnimatedContent>

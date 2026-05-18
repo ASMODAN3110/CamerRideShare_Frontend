@@ -21,6 +21,7 @@ import {
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
 import AnimatedContent from '../components/AnimatedContent'
+import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -219,13 +220,13 @@ function InvestorRow({ investor }: { investor: Investor }) {
 
       {/* Action */}
       <td className="px-5 py-3.5">
-        <button
+        <Button
           type="button"
           className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
         >
           Voir profil
           <ChevronRight className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </td>
     </tr>
   )
@@ -277,13 +278,13 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
                 Gestion et suivi de vos partenaires financiers.
               </p>
             </div>
-            <button
+            <Button
               type="button"
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
             >
               <Plus className="h-4 w-4" />
               Inviter un Investisseur
-            </button>
+            </Button>
           </div>
 
           {/* ── Stat cards ── */}
@@ -350,13 +351,13 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
                     <option value="retard">En retard</option>
                     <option value="inactif">Inactif</option>
                   </select>
-                  <button
+                  <Button
                     type="button"
                     className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400 dark:hover:bg-slate-800"
                     aria-label="Filtres avancés"
                   >
                     <Filter className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Table */}
@@ -402,15 +403,15 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
                     investisseurs
                   </p>
                   <div className="flex items-center gap-2">
-                    <button
+                    <Button
                       disabled
                       className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-400 dark:border-slate-700 dark:bg-slate-900/40 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Précédent
-                    </button>
-                    <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800">
+                    </Button>
+                    <Button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800">
                       Suivant
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </CardContent>

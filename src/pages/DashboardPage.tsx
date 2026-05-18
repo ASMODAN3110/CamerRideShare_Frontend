@@ -26,6 +26,7 @@ import {
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
 import AnimatedContent from '../components/AnimatedContent'
+import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Progress } from '../components/ui/progress'
@@ -66,7 +67,7 @@ function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
         const Icon = t.icon
         const active = t.id === props.role
         return (
-          <button
+          <Button
             key={t.id}
             type="button"
             onClick={() => props.onChange(t.id)}
@@ -79,7 +80,7 @@ function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
           >
             <Icon className="h-4 w-4" />
             {t.label}
-          </button>
+          </Button>
         )
       })}
     </div>
@@ -259,9 +260,9 @@ function AlertesCard() {
                 </div>
                 <div className="mt-1 text-xs font-semibold">
                   {a.isLink ? (
-                    <button type="button" className="text-blue-600 hover:underline dark:text-blue-300">
+                    <Button type="button" className="text-blue-600 hover:underline dark:text-blue-300">
                       {a.amount}
-                    </button>
+                    </Button>
                   ) : (
                     <span className="text-red-600 dark:text-red-300">{a.amount}</span>
                   )}
@@ -292,27 +293,27 @@ function GrandPatronDashboard() {
       <div className="pt-1">
         <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Actions Rapides</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <button
+          <Button
             type="button"
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             <CreditCard className="h-4 w-4" />
             Saisir Paiement
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
           >
             <AlertTriangle className="h-4 w-4 text-red-500" />
             Signaler Incident
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
           >
             <Users className="h-4 w-4 text-emerald-600" />
             Inviter Investisseur
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -320,9 +321,9 @@ function GrandPatronDashboard() {
       <Card className="rounded-2xl">
         <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-3">
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">Transactions Récentes</div>
-          <button type="button" className="text-xs font-semibold text-blue-600 hover:underline">
+          <Button type="button" className="text-xs font-semibold text-blue-600 hover:underline">
             Tout afficher
-          </button>
+          </Button>
         </div>
 
         <div className="overflow-hidden rounded-2xl border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40">
