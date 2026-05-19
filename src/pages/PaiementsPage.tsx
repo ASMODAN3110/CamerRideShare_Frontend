@@ -15,6 +15,7 @@ import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -251,33 +252,31 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
 
               {/* Table */}
               <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800/60">
-                <table className="min-w-full text-sm">
-                  {/* Head */}
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50/80 dark:border-slate-800/60 dark:bg-slate-800/20">
+                <Table className="min-w-full text-sm">
+                  <TableHeader>
+                    <TableRow className="border-b border-slate-100 bg-slate-50/80 dark:border-slate-800/60 dark:bg-slate-800/20">
                       {['Chauffeur', 'Date / Heure', 'Mode', 'Montant', 'Statut', 'Action'].map((col) => (
-                        <th
+                        <TableHead
                           key={col}
                           className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"
                         >
                           {col}
-                        </th>
+                        </TableHead>
                       ))}
-                    </tr>
-                  </thead>
+                    </TableRow>
+                  </TableHeader>
 
-                  {/* Body */}
-                  <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800/60 dark:bg-transparent">
+                  <TableBody className="divide-y divide-slate-100 bg-white dark:divide-slate-800/60 dark:bg-transparent">
                     {filteredTx.length > 0 ? (
                       filteredTx.map((tx) => {
                         const { label, variant, dot } = statusConfig[tx.status]
                         return (
-                          <tr
+                          <TableRow
                             key={tx.id}
                             className="transition hover:bg-slate-50/60 dark:hover:bg-slate-800/20"
                           >
                             {/* Chauffeur */}
-                            <td className="px-5 py-3.5">
+                            <TableCell className="px-5 py-3.5">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-9 w-9 shrink-0">
                                   {tx.avatarUrl ? (
@@ -290,22 +289,20 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
                                     <AvatarFallback>{tx.avatarFallback}</AvatarFallback>
                                   )}
                                 </Avatar>
-                                <span className="font-semibold text-slate-900 dark:text-slate-50">
-                                  {tx.chauffeur}
-                                </span>
+                                <span className="font-semibold text-slate-900 dark:text-slate-50">{tx.chauffeur}</span>
                               </div>
-                            </td>
+                            </TableCell>
 
                             {/* Date */}
-                            <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{tx.dateHeure}</td>
+                            <TableCell className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{tx.dateHeure}</TableCell>
 
                             {/* Mode */}
-                            <td className="px-5 py-3.5">
+                            <TableCell className="px-5 py-3.5">
                               <ModeIcon mode={tx.mode} />
-                            </td>
+                            </TableCell>
 
                             {/* Montant */}
-                            <td className="px-5 py-3.5">
+                            <TableCell className="px-5 py-3.5">
                               <span
                                 className={[
                                   'font-bold',
@@ -316,18 +313,18 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
                               >
                                 {tx.montant}
                               </span>
-                            </td>
+                            </TableCell>
 
                             {/* Statut */}
-                            <td className="px-5 py-3.5">
+                            <TableCell className="px-5 py-3.5">
                               <Badge variant={variant} className="gap-1.5 px-2.5 py-1">
                                 <span className={['h-2 w-2 rounded-full', dot].join(' ')} />
                                 {label}
                               </Badge>
-                            </td>
+                            </TableCell>
 
                             {/* Action */}
-                            <td className="px-5 py-3.5">
+                            <TableCell className="px-5 py-3.5">
                               <Button
                                 type="button"
                                 className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
@@ -335,23 +332,23 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
                                 Détails
                                 <ChevronRight className="h-3.5 w-3.5" />
                               </Button>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )
                       })
                     ) : (
-                      <tr>
-                        <td colSpan={6} className="py-16 text-center">
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2 text-slate-400">
                             <Search className="h-7 w-7" />
                             <p className="text-sm font-semibold">Aucune transaction trouvée</p>
                             <p className="text-xs">Modifiez vos critères de recherche.</p>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
 
               {/* Pagination */}

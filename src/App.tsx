@@ -7,6 +7,11 @@ import ParcPage from './pages/ParcPage.tsx'
 import PaiementsPage from './pages/PaiementsPage.tsx'
 import InvestisseursPage from './pages/InvestisseursPage.tsx'
 import ParametresPage from './pages/ParametresPage.tsx'
+import InvestorDashboardPage from './pages/investor/InvestorDashboard.tsx'
+import InvestorFleetPage from './pages/investor/InvestorFleet.tsx'
+import RevenueHistoryPage from './pages/investor/RevenueHistory.tsx'
+import InvestorReportsPage from './pages/investor/InvestorReports.tsx'
+import InvestorSettingsPage from './pages/investor/InvestorSettings.tsx'
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -49,6 +54,11 @@ function App() {
             path="/parametres"
             element={<ParametresPage theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />}
           />
+          <Route path="/investor-dashboard" element={<InvestorDashboardPage />} />
+          <Route path="/investor-fleet" element={<InvestorFleetPage />} />
+          <Route path="/investor-revenues" element={<RevenueHistoryPage />} />
+          <Route path="/investor-reports" element={<InvestorReportsPage />} />
+          <Route path="/investor-settings" element={<InvestorSettingsPage />} />
           <Route path="*" element={<Navigate to="/connexion" replace />} />
         </Routes>
       </div>

@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Progress } from '../components/ui/progress'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -362,34 +363,35 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
 
                 {/* Table */}
                 <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800/60">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/80 dark:border-slate-800/60 dark:bg-slate-800/20">
+                  <Table className="min-w-full text-sm">
+                    <TableHeader>
+                      <TableRow className="border-b border-slate-100 bg-slate-50/80 dark:border-slate-800/60 dark:bg-slate-800/20">
                         {['Investisseur', 'Investi', 'Recouvré', 'Motos', 'Statut', "Entrée", ''].map((col) => (
-                          <th
+                          <TableHead
                             key={col}
                             className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"
                           >
                             {col}
-                          </th>
+                          </TableHead>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800/60 dark:bg-transparent">
+                      </TableRow>
+                    </TableHeader>
+
+                    <TableBody className="divide-y divide-slate-100 bg-white dark:divide-slate-800/60 dark:bg-transparent">
                       {filteredInvestors.length > 0 ? (
                         filteredInvestors.map((inv) => <InvestorRow key={inv.id} investor={inv} />)
                       ) : (
-                        <tr>
-                          <td colSpan={7} className="py-14 text-center">
+                        <TableRow>
+                          <TableCell colSpan={7} className="py-14 text-center">
                             <div className="flex flex-col items-center gap-2 text-slate-400">
                               <AlertCircle className="h-7 w-7" />
                               <p className="text-sm font-semibold">Aucun investisseur trouvé</p>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
 
                 {/* Pagination */}

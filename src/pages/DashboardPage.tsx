@@ -31,6 +31,7 @@ import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Progress } from '../components/ui/progress'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 
 type Role = 'patron' | 'investisseur' | 'conducteur'
 
@@ -327,18 +328,18 @@ function GrandPatronDashboard() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40">
-          <table className="min-w-full text-xs">
-            <thead className="bg-white dark:bg-slate-900/40">
-              <tr className="text-left text-slate-500 dark:text-slate-400">
-                <th className="px-5 py-3 font-semibold">CHAUFFEUR</th>
-                <th className="px-5 py-3 font-semibold">DATE</th>
-                <th className="px-5 py-3 font-semibold">STATUT</th>
-                <th className="px-5 py-3 font-semibold text-right">MONTANT</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t border-slate-200 dark:border-slate-800">
-                <td className="px-5 py-3">
+          <Table className="min-w-full text-xs">
+            <TableHeader className="bg-white dark:bg-slate-900/40">
+              <TableRow className="text-left text-slate-500 dark:text-slate-400">
+                <TableHead className="px-5 py-3 font-semibold">CHAUFFEUR</TableHead>
+                <TableHead className="px-5 py-3 font-semibold">DATE</TableHead>
+                <TableHead className="px-5 py-3 font-semibold">STATUT</TableHead>
+                <TableHead className="px-5 py-3 font-semibold text-right">MONTANT</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow className="border-t border-slate-200 dark:border-slate-800">
+                <TableCell className="px-5 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src="https://i.pravatar.cc/100?img=1" alt="Emanuel K." className="h-8 w-8 object-cover" />
@@ -347,19 +348,19 @@ function GrandPatronDashboard() {
                       <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Emanuel K.</div>
                     </div>
                   </div>
-                </td>
-                <td className="px-5 py-3 text-slate-500 dark:text-slate-400">24 Oct, 2023 - 10:42</td>
-                <td className="px-5 py-3">
+                </TableCell>
+                <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">24 Oct, 2023 - 10:42</TableCell>
+                <TableCell className="px-5 py-3">
                   <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
                     <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
                     Vérifié
                   </span>
-                </td>
-                <td className="px-5 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">+ 15,000 XAF</td>
-              </tr>
+                </TableCell>
+                <TableCell className="px-5 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">+ 15,000 XAF</TableCell>
+              </TableRow>
 
-              <tr className="border-t border-slate-200 dark:border-slate-800">
-                <td className="px-5 py-3">
+              <TableRow className="border-t border-slate-200 dark:border-slate-800">
+                <TableCell className="px-5 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src="https://i.pravatar.cc/100?img=2" alt="Sarah M." className="h-8 w-8 object-cover" />
@@ -368,19 +369,19 @@ function GrandPatronDashboard() {
                       <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Sarah M.</div>
                     </div>
                   </div>
-                </td>
-                <td className="px-5 py-3 text-slate-500 dark:text-slate-400">24 Oct, 2023 - 09:15</td>
-                <td className="px-5 py-3">
+                </TableCell>
+                <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">24 Oct, 2023 - 09:15</TableCell>
+                <TableCell className="px-5 py-3">
                   <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
                     <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-500" />
                     En attente
                   </span>
-                </td>
-                <td className="px-5 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">+ 15,000 XAF</td>
-              </tr>
+                </TableCell>
+                <TableCell className="px-5 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">+ 15,000 XAF</TableCell>
+              </TableRow>
 
-              <tr className="border-t border-slate-200 dark:border-slate-800">
-                <td className="px-5 py-3">
+              <TableRow className="border-t border-slate-200 dark:border-slate-800">
+                <TableCell className="px-5 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarFallback>JM</AvatarFallback>
@@ -389,17 +390,17 @@ function GrandPatronDashboard() {
                       <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Journal Maintenance</div>
                     </div>
                   </div>
-                </td>
-                <td className="px-5 py-3 text-slate-500 dark:text-slate-400">23 Oct, 2023 - 16:30</td>
-                <td className="px-5 py-3">
+                </TableCell>
+                <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">23 Oct, 2023 - 16:30</TableCell>
+                <TableCell className="px-5 py-3">
                   <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-800/60 dark:text-slate-200">
                     Dépense
                   </span>
-                </td>
-                <td className="px-5 py-3 text-right font-semibold text-red-600 dark:text-red-300">- 4,500 XAF</td>
-              </tr>
-            </tbody>
-          </table>
+                </TableCell>
+                <TableCell className="px-5 py-3 text-right font-semibold text-red-600 dark:text-red-300">- 4,500 XAF</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
       </Card>
     </div>
