@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import AnimatedContent from '../components/AnimatedContent'
+import { EffectCard, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 
 function IconPhone(props: { className?: string }) {
@@ -34,11 +34,11 @@ export default function ConnexionPage() {
   }, [telephone, motDePasse])
 
   return (
-    <div className="flex w-full items-center justify-center bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
+    <SpotlightSection className="flex w-full items-center justify-center bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-slate-900">
         <div className="flex flex-col md:flex-row">
           {/* Colonne gauche : formulaire */}
-          <AnimatedContent className="w-full p-8 md:w-1/2 md:p-12" direction="vertical" distance={80} duration={0.9}>
+          <EffectCard className="w-full md:w-1/2"><div className="w-full p-8 md:p-12">
             <h2 className="text-center text-2xl font-semibold text-slate-900 dark:text-slate-50">
               Connexion
             </h2>
@@ -102,16 +102,10 @@ export default function ConnexionPage() {
                 S&apos;inscrire
               </Button>
             </form>
-          </AnimatedContent>
+          </div></EffectCard>
 
           {/* Colonne droite : CTA */}
-          <AnimatedContent
-            className="relative w-full overflow-hidden bg-blue-700 p-8 text-white shadow-xl shadow-blue-900/25 rounded-2xl md:w-1/2 md:p-12 md:rounded-tl-[4.5rem] md:rounded-bl-[4.5rem] md:rounded-tr-2xl md:rounded-br-2xl dark:bg-blue-900"
-            direction="vertical"
-            distance={120}
-            duration={0.9}
-            delay={0.12}
-          >
+          <div className="relative w-full overflow-hidden bg-blue-700 p-8 text-white shadow-xl shadow-blue-900/25 rounded-2xl md:w-1/2 md:p-12 md:rounded-tl-[4.5rem] md:rounded-bl-[4.5rem] md:rounded-tr-2xl md:rounded-br-2xl dark:bg-blue-900">
             <div className="pointer-events-none absolute -top-20 -right-24 z-0 h-80 w-80 rounded-full bg-blue-900/20 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-24 -left-20 z-0 h-80 w-80 rounded-full bg-blue-900/15 blur-2xl" />
 
@@ -131,10 +125,10 @@ export default function ConnexionPage() {
                 </Button>
               </div>
             </div>
-          </AnimatedContent>
+          </div>
         </div>
       </div>
-    </div>
+    </SpotlightSection>
   )
 }
 

@@ -13,7 +13,7 @@ import {
   User,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import AnimatedContent from '../components/AnimatedContent'
+import { EffectCard, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -439,8 +439,8 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
   const showProfil        = activeTab === 'profil'        || showAll
 
   return (
-    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
-      <div className="flex">
+    <SpotlightSection>
+    <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -483,10 +483,10 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
 
           {/* ── Sections ── */}
           <div className="space-y-6">
-            {showProfil        && <SectionProfilAdmin />}
-            {showPlateforme    && <SectionPlateforme />}
-            {showAcces         && <SectionAcces />}
-            {showNotifications && <SectionNotifications />}
+            <EffectCard className="rounded-2xl">{showProfil        && <SectionProfilAdmin />}</EffectCard>
+            <EffectCard className="rounded-2xl">{showPlateforme    && <SectionPlateforme />}</EffectCard>
+            <EffectCard className="rounded-2xl">{showAcces         && <SectionAcces />}</EffectCard>
+            <EffectCard className="rounded-2xl">{showNotifications && <SectionNotifications />}</EffectCard>
           </div>
         </main>
       </div>
@@ -505,6 +505,7 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
           Réinitialiser
         </Button>
         <Button
+          glare
           type="button"
           className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
         >
@@ -513,6 +514,6 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
         </Button>
       </div>
 
-    </AnimatedContent>
+    </SpotlightSection>
   )
 }

@@ -3,6 +3,7 @@ import { Download, CheckCircle, Printer, Search } from 'lucide-react'
 
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
+import { EffectCard, SpotlightSection } from '../../components/MagicBento'
 import { Badge } from '../../components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import InvestorSidebar from '../../components/InvestorSidebar'
@@ -287,7 +288,7 @@ export default function RevenueHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-0">
+    <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950 p-0">
       {/* Print rules */}
       <style>
         {`
@@ -334,16 +335,16 @@ export default function RevenueHistory() {
 
           {/* Stats */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               <CardHeader className="p-0">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">REVENU TOTAL DU MOIS</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">285 000 XAF</div>
               </CardContent>
-            </Card>
+            </Card></EffectCard>
 
-            <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               <CardHeader className="p-0">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">DERNIER VERSEMENT</CardTitle>
               </CardHeader>
@@ -351,16 +352,16 @@ export default function RevenueHistory() {
                 <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">+48 500 XAF</div>
                 <div className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">Tendance positive</div>
               </CardContent>
-            </Card>
+            </Card></EffectCard>
 
-            <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               <CardHeader className="p-0">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">MOYENNE PAR MOTO</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">{avgPerMoto.toLocaleString('fr-FR')} XAF</div>
               </CardContent>
-            </Card>
+            </Card></EffectCard>
           </div>
 
           {/* Search & Pagination - screen only */}
@@ -385,7 +386,7 @@ export default function RevenueHistory() {
               </div>
             </div>
 
-            <RevenueHistoryTable rows={pageRows} />
+            <EffectCard className="rounded-2xl"><RevenueHistoryTable rows={pageRows} /></EffectCard>
 
             <div className="flex items-center justify-between gap-3">
               <div />
@@ -412,7 +413,7 @@ export default function RevenueHistory() {
 
           {/* Print-only table (all filtered rows, not just current page) */}
           <div className="print-only">
-            <RevenueHistoryTable rows={filtered} />
+            <EffectCard className="rounded-2xl"><RevenueHistoryTable rows={filtered} /></EffectCard>
           </div>
 
           {/* Footer identity (visible in print and screen) */}
@@ -425,7 +426,7 @@ export default function RevenueHistory() {
           </div>
         </main>
       </div>
-    </div>
+    </SpotlightSection>
   )
 }
 

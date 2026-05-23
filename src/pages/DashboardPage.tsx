@@ -25,7 +25,7 @@ import {
   Line,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
-import AnimatedContent from '../components/AnimatedContent'
+import { EffectCard, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -588,7 +588,7 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
   })()
 
   return (
-    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
+      <SpotlightSection>
       <div className="flex">
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={props.theme} onToggleTheme={props.onToggleTheme} />
 
@@ -610,13 +610,13 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <TopStatCard title="Parc Total" value="124" delta="+12%" Icon={MapPin} />
-            <TopStatCard title="Investisseurs Actifs" value="42" delta="+5%" Icon={Users} />
-            <TopStatCard title="Revenu Mensuel" value="12.5M XAF" delta="+8%" Icon={DollarSign} />
+            <EffectCard className="rounded-2xl"><TopStatCard title="Parc Total" value="124" delta="+12%" Icon={MapPin} /></EffectCard>
+            <EffectCard className="rounded-2xl"><TopStatCard title="Investisseurs Actifs" value="42" delta="+5%" Icon={Users} /></EffectCard>
+            <EffectCard className="rounded-2xl"><TopStatCard title="Revenu Mensuel" value="12.5M XAF" delta="+8%" Icon={DollarSign} /></EffectCard>
           </div>
 
           <div className="mt-5">
-            <GrandPatronDashboard />
+            <EffectCard className="rounded-2xl"><GrandPatronDashboard /></EffectCard>
             <div className="hidden">
               <InvestorDashboard />
               <ConducteurDashboard />
@@ -624,7 +624,7 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
           </div>
         </main>
       </div>
-    </AnimatedContent>
+      </SpotlightSection>
   )
 }
 

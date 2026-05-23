@@ -10,7 +10,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import AnimatedContent from '../components/AnimatedContent'
+import { EffectCard, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -157,7 +157,7 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
   })
 
   return (
-    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
+      <SpotlightSection>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -176,6 +176,7 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
               </p>
             </div>
             <Button
+              glare
               type="button"
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
             >
@@ -186,32 +187,32 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
 
           {/* ── Stat cards ── */}
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard
+            <EffectCard className="rounded-2xl"><StatCard
               label="Total Collecté (Mois)"
               value="4.2M"
               sub="XAF"
               Icon={TrendingUp}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            />
-            <StatCard
+            /></EffectCard>
+            <EffectCard className="rounded-2xl"><StatCard
               label="Paiements en Attente"
               value="12"
               Icon={Wallet}
               iconBg="bg-orange-50 dark:bg-orange-950/40"
               iconColor="text-orange-600 dark:text-orange-300"
-            />
-            <StatCard
+            /></EffectCard>
+            <EffectCard className="rounded-2xl"><StatCard
               label="Taux de Recouvrement"
               value="92%"
               Icon={TrendingUp}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            />
+            /></EffectCard>
           </div>
 
           {/* ── Main Card : Historique ── */}
-          <Card>
+          <EffectCard className="rounded-2xl"><Card>
             <CardHeader className="p-5 pb-4">
               <CardTitle className="text-base">Historique des Transactions</CardTitle>
             </CardHeader>
@@ -376,9 +377,9 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card></EffectCard>
         </main>
       </div>
-    </AnimatedContent>
+      </SpotlightSection>
   )
 }

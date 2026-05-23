@@ -20,7 +20,7 @@ import {
   YAxis,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
-import AnimatedContent from '../components/AnimatedContent'
+import { EffectCard, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -261,7 +261,7 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
   const totalMotos = mockInvestors.reduce((acc, i) => acc + i.motos, 0)
 
   return (
-    <AnimatedContent className="min-h-screen bg-slate-50 dark:bg-slate-950" direction="vertical" distance={80} duration={0.9}>
+      <SpotlightSection>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -280,6 +280,7 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
               </p>
             </div>
             <Button
+              glare
               type="button"
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
             >
@@ -290,36 +291,36 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
 
           {/* ── Stat cards ── */}
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatCard
+            <EffectCard className="rounded-2xl"><StatCard
               label="Capital Total Investi"
               value="16.2M"
               sub="XAF"
               Icon={Wallet}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            />
-            <StatCard
+            /></EffectCard>
+            <EffectCard className="rounded-2xl"><StatCard
               label="Investisseurs Actifs"
               value={String(totalActifs)}
               sub={`/ ${mockInvestors.length}`}
               Icon={Users}
               iconBg="bg-emerald-50 dark:bg-emerald-950/40"
               iconColor="text-emerald-600 dark:text-emerald-300"
-            />
-            <StatCard
+            /></EffectCard>
+            <EffectCard className="rounded-2xl"><StatCard
               label="Motos Financées"
               value={String(totalMotos)}
               Icon={TrendingUp}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            />
+            /></EffectCard>
           </div>
 
           {/* ── Two-col layout: Table + Chart ── */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 
             {/* ── Tableau investisseurs ── */}
-            <Card className="xl:col-span-2">
+            <EffectCard className="rounded-2xl xl:col-span-2"><Card className="xl:col-span-2">
               <CardHeader className="p-5 pb-4">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base">Liste des Investisseurs</CardTitle>
@@ -417,7 +418,7 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card></EffectCard>
 
             {/* ── Sidebar: ROI Chart + Top investisseurs ── */}
             <div className="flex flex-col gap-6">
@@ -495,6 +496,6 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
           </div>
         </main>
       </div>
-    </AnimatedContent>
+      </SpotlightSection>
   )
 }

@@ -3,6 +3,7 @@ import { BarChart3, Download, Printer } from 'lucide-react'
 
 import InvestorSidebar from '../../components/InvestorSidebar'
 import { Button } from '../../components/ui/button'
+import { EffectCard, SpotlightSection } from '../../components/MagicBento'
 import { Card, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
@@ -291,7 +292,7 @@ export default function InvestorReports() {
   const onPrint = () => window.print()
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-0">
+    <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950 p-0">
       <style>
         {`
           @media print {
@@ -348,28 +349,28 @@ export default function InvestorReports() {
               </div>
             </div>
 
-            <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-50">Filtre de période</CardTitle>
                 <div className="mt-2">
                   <PeriodFilter activePeriod={activePeriod} setActivePeriod={setActivePeriod} />
                 </div>
               </CardHeader>
-            </Card>
+            </Card></EffectCard>
 
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {/* Comparaison Revenus vs Dépenses */}
-              <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-0 pb-2">
                   <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-50">Comparaison Revenus vs Dépenses</CardTitle>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Données mensuelles sur les 6 derniers mois</div>
                 </CardHeader>
 
                 <ComparisonBars data={comparisonData} />
-              </Card>
+              </Card></EffectCard>
 
               {/* Prévisions */}
-              <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-0 pb-2">
                   <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-50">Prévisions</CardTitle>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -397,19 +398,19 @@ export default function InvestorReports() {
                     Analyser des scénarios
                   </Button>
                 </div>
-              </Card>
+              </Card></EffectCard>
 
               {/* Rentabilité par Moto */}
-              <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-0 pb-2">
                   <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-50">Rentabilité par Moto</CardTitle>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Classement basé sur le ROI spécifique</div>
                 </CardHeader>
                 <RentabilityTable rows={rentabilityRows} />
-              </Card>
+              </Card></EffectCard>
 
               {/* Répartition des Coûts */}
-              <Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-0 pb-2">
                   <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-50">Répartition des Coûts</CardTitle>
                   <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">Visualisation des charges principales</div>
@@ -418,7 +419,7 @@ export default function InvestorReports() {
                 <div className="mt-3">
                   <DonutChart parts={costParts} />
                 </div>
-              </Card>
+              </Card></EffectCard>
             </div>
 
             <footer className="pt-4 text-sm font-semibold text-slate-600 dark:text-slate-300">
@@ -427,7 +428,7 @@ export default function InvestorReports() {
           </div>
         </main>
       </div>
-    </div>
+    </SpotlightSection>
   )
 }
 

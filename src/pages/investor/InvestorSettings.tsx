@@ -9,6 +9,7 @@ import { Card } from '../../components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
 import { Switch } from '../../components/ui/switch'
+import { EffectCard, SpotlightSection } from '../../components/MagicBento'
 
 type Theme = 'light' | 'dark'
 
@@ -130,7 +131,7 @@ export default function InvestorSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="flex">
         <div className="no-print">
           <InvestorSidebar
@@ -152,7 +153,7 @@ export default function InvestorSettings() {
               </p>
             </header>
 
-            <Card className="rounded-2xl border-slate-200/70 p-6 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 p-6 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               {/* Informations du profil */}
               <div className="space-y-4">
                 <div className="text-base font-bold text-slate-900 dark:text-slate-50">Informations du profil</div>
@@ -254,7 +255,7 @@ export default function InvestorSettings() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </Card></EffectCard>
 
             {/* Modale édition profil */}
             <Modal
@@ -357,7 +358,7 @@ export default function InvestorSettings() {
           </div>
         </main>
       </div>
-    </div>
+    </SpotlightSection>
   )
 }
 

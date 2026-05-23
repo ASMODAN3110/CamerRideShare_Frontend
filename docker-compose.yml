@@ -3,14 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: camerrideshare-frontend
     ports:
-      - "8080:80"
-    depends_on:
-      - backend
-
-  # Adaptez cette section à votre backend (ex: Spring/Node/Nest/etc.)
-  backend:
-    image: backend:latest
-    ports:
-      - "3000:3000"
-
+      - "8081:80"
