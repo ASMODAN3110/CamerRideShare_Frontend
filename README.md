@@ -1,17 +1,16 @@
 # CamerRideShare
 
-Plateforme de gestion de flotte de motos-taxis au Cameroun. Interface moderne avec espaces administrateur et investisseur.
+Plateforme de gestion de flotte de motos-taxis au Cameroun. Interface moderne avec espaces administrateur, investisseur et conducteur.
 
 ## Stack
 
 - **React 19** + **TypeScript** + **Vite 7**
 - **Tailwind CSS 4** — dark mode natif
 - **shadcn/ui** — composants primitifs (Button, Card, Badge, Avatar, Table, Switch, Progress)
-- **GSAP 3.15** — animations de particules et effets de hover (MagicBento, GlareHover)
+- **GSAP 3.15** — animations de particules et effets de hover (MagicBento)
 - **Recharts 3.8** — graphiques (LineChart, PieChart, BarChart)
 - **Lucide React** — icônes
 - **React Router v7** — navigation
-- **Motion (framer-motion)** — animations UI additionnelles
 
 ## Pages
 
@@ -25,13 +24,21 @@ Plateforme de gestion de flotte de motos-taxis au Cameroun. Interface moderne av
 | `/parametres` | ParametresPage | Configuration plateforme, accès, notifications |
 
 ### Espace Investisseur
-| Route | Description |
-|---|---|
-| `/investor/dashboard` | Tableau de bord investisseur (ROI, flotte) |
-| `/investor/fleet` | Parc automobile détaillé |
-| `/investor/revenue` | Historique des revenus |
-| `/investor/reports` | Rapports et analyses |
-| `/investor/settings` | Paramètres du compte |
+| Route | Page | Description |
+|---|---|---|
+| `/investor-dashboard` | InvestorDashboard | Tableau de bord (ROI, flotte) |
+| `/investor-fleet` | InvestorFleet | Parc automobile détaillé |
+| `/investor-revenues` | RevenueHistory | Historique des revenus |
+| `/investor-reports` | InvestorReports | Rapports et analyses |
+| `/investor-settings` | InvestorSettings | Paramètres du compte |
+
+### Espace Conducteur
+| Route | Page | Description |
+|---|---|---|
+| `/driver-dashboard` | DriverDashboard | Tableau de bord conducteur (progression, paiements) |
+| `/driver-payments` | DriverPayments | Historique des versements et solde restant |
+| `/driver-support` | DriverSupport | FAQ, contact direct, signalement de problèmes |
+| `/driver-settings` | DriverSettings | Paramètres du compte, sécurité, notifications, langue |
 
 ### Pages publiques
 | Route | Description |
@@ -41,9 +48,8 @@ Plateforme de gestion de flotte de motos-taxis au Cameroun. Interface moderne av
 
 ## Effets visuels
 
-- **SpotlightSection** — projecteur lumineux suivants la souris
-- **EffectCard** — particules animées, tilt, magnétisme, ripple au clic, bordure lumineuse
-- **GlareHover** — reflet lumineux sur les boutons (prop `glare`)
+- **SpotlightSection** — projecteur lumineux suivant la souris
+- **EffectCard** — particules animées, tilt, magnétisme, ripple au clic, bordure lumineuse (bleu ciel)
 - Tous les effets s'activent surtout en dark mode
 
 ## Démarrage
