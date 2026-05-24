@@ -143,7 +143,7 @@ export default function InvestorSettings() {
         </div>
 
         <main className="flex-1 p-6">
-          <div className="mx-auto w-full max-w-2xl space-y-5">
+          <div className="w-full space-y-5">
             <Breadcrumb />
 
             <header>

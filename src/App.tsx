@@ -12,6 +12,10 @@ import InvestorFleetPage from './pages/investor/InvestorFleet.tsx'
 import RevenueHistoryPage from './pages/investor/RevenueHistory.tsx'
 import InvestorReportsPage from './pages/investor/InvestorReports.tsx'
 import InvestorSettingsPage from './pages/investor/InvestorSettings.tsx'
+import DriverDashboardPage from './pages/driver/DriverDashboard.tsx'
+import DriverPaymentsPage from './pages/driver/DriverPayments.tsx'
+import DriverSupportPage from './pages/driver/DriverSupport.tsx'
+import DriverSettingsPage from './pages/driver/DriverSettings.tsx'
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -59,6 +63,10 @@ function App() {
           <Route path="/investor-revenues" element={<RevenueHistoryPage />} />
           <Route path="/investor-reports" element={<InvestorReportsPage />} />
           <Route path="/investor-settings" element={<InvestorSettingsPage />} />
+          <Route path="/driver-dashboard" element={<DriverDashboardPage />} />
+          <Route path="/driver-payments" element={<DriverPaymentsPage />} />
+          <Route path="/driver-support" element={<DriverSupportPage />} />
+          <Route path="/driver-settings" element={<DriverSettingsPage />} />
           <Route path="*" element={<Navigate to="/connexion" replace />} />
         </Routes>
       </div>

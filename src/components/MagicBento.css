@@ -2,9 +2,9 @@
   --hue: 27;
   --sat: 69%;
   --white: hsl(0, 0%, 100%);
-  --purple-primary: rgba(132, 0, 255, 1);
-  --purple-glow: rgba(132, 0, 255, 0.2);
-  --purple-border: rgba(132, 0, 255, 0.8);
+  --purple-primary: rgba(14, 165, 233, 1);
+  --purple-glow: rgba(14, 165, 233, 0.2);
+  --purple-border: rgba(14, 165, 233, 0.8);
   --border-color: #2F293A;
   --background-dark: #120F17;
   color-scheme: light dark;
@@ -29,7 +29,7 @@
   height: 4px;
   border-radius: 50%;
   background: var(--purple-primary);
-  box-shadow: 0 0 6px rgba(132, 0, 255, 0.6);
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.6);
   pointer-events: none;
   z-index: 100;
 }
@@ -41,7 +41,7 @@
   left: -2px;
   right: -2px;
   bottom: -2px;
-  background: rgba(132, 0, 255, 0.2);
+  background: rgba(14, 165, 233, 0.2);
   border-radius: 50%;
   z-index: -1;
 }
@@ -62,8 +62,8 @@
   padding: 6px;
   background: radial-gradient(
     var(--glow-radius) circle at var(--glow-x) var(--glow-y),
-    rgba(132, 0, 255, calc(var(--glow-intensity) * 0.8)) 0%,
-    rgba(132, 0, 255, calc(var(--glow-intensity) * 0.4)) 30%,
+    rgba(14, 165, 233, calc(var(--glow-intensity) * 0.8)) 0%,
+    rgba(14, 165, 233, calc(var(--glow-intensity) * 0.4)) 30%,
     transparent 60%
   );
   border-radius: inherit;
@@ -200,8 +200,8 @@
   padding: 6px;
   background: radial-gradient(
     var(--glow-radius) circle at var(--glow-x) var(--glow-y),
-    rgba(132, 0, 255, calc(var(--glow-intensity) * 0.8)) 0%,
-    rgba(132, 0, 255, calc(var(--glow-intensity) * 0.4)) 30%,
+    rgba(14, 165, 233, calc(var(--glow-intensity) * 0.8)) 0%,
+    rgba(14, 165, 233, calc(var(--glow-intensity) * 0.4)) 30%,
     transparent 60%
   );
   border-radius: inherit;
