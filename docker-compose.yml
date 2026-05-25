@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     container_name: camerrideshare-frontend
     ports:
-      - "8081:80"
+      - "8081:5173"
+    volumes:
+      - ./src:/app/src

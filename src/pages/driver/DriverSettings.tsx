@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import {
   Bell,
   ChevronDown,
-  Eye,
   Globe,
   Lock,
   LogOut,
@@ -15,7 +14,7 @@ import {
 
 import { EffectCard, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
-import { Avatar, AvatarFallback } from '../../components/ui/avatar'
+import { Avatar } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
@@ -121,10 +120,8 @@ export default function DriverSettings() {
                 </CardHeader>
                 <CardContent className="space-y-4 p-5 pt-0">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarFallback className="rounded-full bg-blue-600 text-lg font-bold text-white">
-                        JD
-                      </AvatarFallback>
+                    <Avatar className="h-16 w-16 bg-blue-600 text-lg font-bold text-white">
+                      JD
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
