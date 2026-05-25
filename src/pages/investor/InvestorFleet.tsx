@@ -6,7 +6,7 @@ import InvestorSidebar from '../../components/InvestorSidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
-import { EffectCard, SpotlightSection } from '../../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 
 type MotoStatus = 'actif' | 'panne' | 'indisponible'
 
@@ -296,7 +296,7 @@ export default function InvestorFleet() {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Left column: summaries */}
               <div className="space-y-4 lg:col-span-1">
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-3">
                     <CardTitle className="text-base">Tous les statuts</CardTitle>
                     <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">2-3 motos sélectionnées</div>
@@ -320,9 +320,9 @@ export default function InvestorFleet() {
                       })}
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
 
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-3">
                     <CardTitle className="text-base">Plus récents</CardTitle>
                     <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Dernières mises à jour</div>
@@ -342,9 +342,9 @@ export default function InvestorFleet() {
                       ))}
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
 
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-3">
                     <CardTitle className="text-base">Zone géographique</CardTitle>
                     <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Par zones</div>
@@ -364,7 +364,7 @@ export default function InvestorFleet() {
                       ))}
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
               </div>
 
               {/* Right column: list */}
@@ -387,7 +387,7 @@ export default function InvestorFleet() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {searchedMotos.map((m) => (
-                    <EffectCard key={m.id} className="rounded-2xl"><MotoCard moto={m} /></EffectCard>
+                    <ParticleHover key={m.id} className="rounded-2xl"><MotoCard moto={m} /></ParticleHover>
                   ))}
                 </div>
               </div>

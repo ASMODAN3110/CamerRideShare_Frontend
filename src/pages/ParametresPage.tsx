@@ -13,7 +13,7 @@ import {
   User,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { EffectCard, SpotlightSection } from '../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -483,10 +483,10 @@ export default function ParametresPage({ theme, onToggleTheme }: ParametresPageP
 
           {/* ── Sections ── */}
           <div className="space-y-6">
-            <EffectCard className="rounded-2xl">{showProfil        && <SectionProfilAdmin />}</EffectCard>
-            <EffectCard className="rounded-2xl">{showPlateforme    && <SectionPlateforme />}</EffectCard>
-            <EffectCard className="rounded-2xl">{showAcces         && <SectionAcces />}</EffectCard>
-            <EffectCard className="rounded-2xl">{showNotifications && <SectionNotifications />}</EffectCard>
+            <ParticleHover className="rounded-2xl">{showProfil        && <SectionProfilAdmin />}</ParticleHover>
+            <ParticleHover className="rounded-2xl">{showPlateforme    && <SectionPlateforme />}</ParticleHover>
+            <ParticleHover className="rounded-2xl">{showAcces         && <SectionAcces />}</ParticleHover>
+            <ParticleHover className="rounded-2xl">{showNotifications && <SectionNotifications />}</ParticleHover>
           </div>
         </main>
       </div>

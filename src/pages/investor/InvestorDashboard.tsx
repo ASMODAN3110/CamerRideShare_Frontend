@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 
 import { Button } from '../../components/ui/button'
-import { EffectCard, SpotlightSection } from '../../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Progress } from '../../components/ui/progress'
 import { Badge } from '../../components/ui/badge'
@@ -75,7 +75,7 @@ function FlotteMotoCard({ moto }: { moto: FlotteMoto }) {
   const progressPct = Math.round((moto.semaineAcquise / moto.semaineTotal) * 100)
 
   return (
-    <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+    <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
       <CardHeader className="p-5 pb-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -112,7 +112,7 @@ function FlotteMotoCard({ moto }: { moto: FlotteMoto }) {
           </div>
         </div>
       </CardContent>
-    </Card>
+    </Card></ParticleHover>
   )
 }
 
@@ -261,12 +261,12 @@ export default function InvestorDashboard() {
             {/* Stat cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {statCards.map((s) => (
-                <EffectCard key={s.title} className="rounded-2xl"><StatCard {...s} /></EffectCard>
+                <ParticleHover key={s.title} className="rounded-2xl"><StatCard {...s} /></ParticleHover>
               ))}
             </div>
 
             {/* ROI Chart */}
-            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-base">Performance des Revenus Hebdomadaires</CardTitle>
                 <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -308,7 +308,7 @@ export default function InvestorDashboard() {
                   </ResponsiveContainer>
                 </div>
               </CardContent>
-            </Card></EffectCard>
+            </Card></ParticleHover>
 
             {/* Portfolio */}
             <div className="flex items-end justify-between gap-4">
@@ -320,7 +320,7 @@ export default function InvestorDashboard() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {flotilles.map((m) => (
-                <EffectCard key={m.id} className="rounded-2xl"><FlotteMotoCard moto={m} /></EffectCard>
+                <FlotteMotoCard key={m.id} moto={m} />
               ))}
             </div>
           </div>

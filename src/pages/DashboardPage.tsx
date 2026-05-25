@@ -25,7 +25,7 @@ import {
   Line,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
-import { EffectCard, SpotlightSection } from '../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -37,7 +37,7 @@ type Role = 'patron' | 'investisseur' | 'conducteur'
 
 function TopStatCard(props: { title: string; value: string; delta: string; Icon: LucideIcon }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/40">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/40">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs font-medium text-slate-500">{props.title}</div>
@@ -610,13 +610,13 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <EffectCard className="rounded-2xl"><TopStatCard title="Parc Total" value="124" delta="+12%" Icon={MapPin} /></EffectCard>
-            <EffectCard className="rounded-2xl"><TopStatCard title="Investisseurs Actifs" value="42" delta="+5%" Icon={Users} /></EffectCard>
-            <EffectCard className="rounded-2xl"><TopStatCard title="Revenu Mensuel" value="12.5M XAF" delta="+8%" Icon={DollarSign} /></EffectCard>
+            <ParticleHover className="rounded-2xl"><TopStatCard title="Parc Total" value="124" delta="+12%" Icon={MapPin} /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><TopStatCard title="Investisseurs Actifs" value="42" delta="+5%" Icon={Users} /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><TopStatCard title="Revenu Mensuel" value="12.5M XAF" delta="+8%" Icon={DollarSign} /></ParticleHover>
           </div>
 
           <div className="mt-5">
-            <EffectCard className="rounded-2xl"><GrandPatronDashboard /></EffectCard>
+            <GrandPatronDashboard />
             <div className="hidden">
               <InvestorDashboard />
               <ConducteurDashboard />

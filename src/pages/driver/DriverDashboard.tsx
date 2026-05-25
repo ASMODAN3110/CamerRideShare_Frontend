@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle, CreditCard, Flag, Wallet } from 'lucide-react'
 
-import { EffectCard, SpotlightSection } from '../../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
@@ -210,18 +210,18 @@ export default function DriverDashboard() {
               {/* Colonne gauche : jauge + infos */}
               <div className="space-y-5">
                 {/* Jauge de progression */}
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-2">
                     <CardTitle className="text-base">Progression</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center pb-6 pt-2">
                     <CircularGauge pct={progress.proprietePct} />
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
 
                 {/* Reste à payer + Statut */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                  <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                     <CardHeader className="p-5 pb-2">
                       <CardTitle className="flex items-center gap-2 text-base">
                         <Wallet className="h-4 w-4 text-slate-500" />
@@ -236,9 +236,9 @@ export default function DriverDashboard() {
                         {100 - progress.proprietePct}% restant à payer
                       </div>
                     </CardContent>
-                  </Card></EffectCard>
+                  </Card></ParticleHover>
 
-                  <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                  <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                     <CardHeader className="p-5 pb-2">
                       <CardTitle className="flex items-center gap-2 text-base">
                         <CheckCircle className="h-4 w-4 text-slate-500" />
@@ -273,13 +273,13 @@ export default function DriverDashboard() {
                         </Button>
                       </div>
                     </CardContent>
-                  </Card></EffectCard>
+                  </Card></ParticleHover>
                 </div>
               </div>
 
               {/* Colonne droite : historique */}
               <div className="lg:col-span-1">
-                <EffectCard className="rounded-2xl h-full"><Card className="flex h-full flex-col rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl h-full"><Card className="flex h-full flex-col rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-3">
                     <CardTitle className="text-base">Paiements Récents</CardTitle>
                   </CardHeader>
@@ -310,7 +310,7 @@ export default function DriverDashboard() {
                       ))}
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
               </div>
             </div>
 

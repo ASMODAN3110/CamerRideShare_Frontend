@@ -20,7 +20,7 @@ import {
   YAxis,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
-import { EffectCard, SpotlightSection } from '../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -291,36 +291,36 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
 
           {/* ── Stat cards ── */}
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <EffectCard className="rounded-2xl"><StatCard
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Capital Total Investi"
               value="16.2M"
               sub="XAF"
               Icon={Wallet}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Investisseurs Actifs"
               value={String(totalActifs)}
               sub={`/ ${mockInvestors.length}`}
               Icon={Users}
               iconBg="bg-emerald-50 dark:bg-emerald-950/40"
               iconColor="text-emerald-600 dark:text-emerald-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Motos Financées"
               value={String(totalMotos)}
               Icon={TrendingUp}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            /></EffectCard>
+            /></ParticleHover>
           </div>
 
           {/* ── Two-col layout: Table + Chart ── */}
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 
             {/* ── Tableau investisseurs ── */}
-            <EffectCard className="rounded-2xl xl:col-span-2"><Card className="xl:col-span-2">
+            <ParticleHover className="rounded-2xl xl:col-span-2"><Card className="xl:col-span-2">
               <CardHeader className="p-5 pb-4">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base">Liste des Investisseurs</CardTitle>
@@ -418,7 +418,7 @@ export default function InvestisseursPage({ theme, onToggleTheme }: Investisseur
                   </div>
                 </div>
               </CardContent>
-            </Card></EffectCard>
+            </Card></ParticleHover>
 
             {/* ── Sidebar: ROI Chart + Top investisseurs ── */}
             <div className="flex flex-col gap-6">

@@ -12,7 +12,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { EffectCard, SpotlightSection } from '../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -254,34 +254,34 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
 
           {/* ── Stat cards ── */}
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <EffectCard className="rounded-2xl"><StatCard
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Total Motos"
               value={124}
               Icon={Bike}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Disponibles"
               value={105}
               Icon={CheckCircle2}
               iconBg="bg-emerald-50 dark:bg-emerald-950/40"
               iconColor="text-emerald-600 dark:text-emerald-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="En Maintenance"
               value={7}
               Icon={Wrench}
               iconBg="bg-orange-50 dark:bg-orange-950/40"
               iconColor="text-orange-600 dark:text-orange-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Incidents"
               value={12}
               Icon={AlertTriangle}
               iconBg="bg-red-50 dark:bg-red-950/40"
               iconColor="text-red-600 dark:text-red-300"
-            /></EffectCard>
+            /></ParticleHover>
           </div>
 
           {/* ── Search & Filters ── */}
@@ -348,7 +348,7 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
           {filteredMotos.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredMotos.map((moto) => (
-                <EffectCard key={moto.id} className="rounded-2xl"><MotoCard moto={moto} /></EffectCard>
+                <ParticleHover key={moto.id} className="rounded-2xl"><MotoCard moto={moto} /></ParticleHover>
               ))}
             </div>
           ) : (

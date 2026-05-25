@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, CheckCircle, CreditCard, Smartphone, Wallet } from 'lucide-react'
 
-import { EffectCard, SpotlightSection } from '../../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
@@ -113,7 +113,7 @@ export default function DriverPayments() {
 
             {/* Stat cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-5 pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-500">
                     <Wallet className="h-4 w-4" />
@@ -128,9 +128,9 @@ export default function DriverPayments() {
                     Cumulé depuis le début
                   </div>
                 </CardContent>
-              </Card></EffectCard>
+              </Card></ParticleHover>
 
-              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-5 pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-500">
                     <Wallet className="h-4 w-4" />
@@ -145,9 +145,9 @@ export default function DriverPayments() {
                     Sur un total de {formatXaf(totalDu)} FCFA
                   </div>
                 </CardContent>
-              </Card></EffectCard>
+              </Card></ParticleHover>
 
-              <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+              <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-5 pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-500">
                     <Calendar className="h-4 w-4" />
@@ -162,11 +162,11 @@ export default function DriverPayments() {
                     Le {dernierVersement.date}
                   </div>
                 </CardContent>
-              </Card></EffectCard>
+              </Card></ParticleHover>
             </div>
 
             {/* Table */}
-            <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+            <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
               <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-base">Versements</CardTitle>
               </CardHeader>
@@ -251,7 +251,7 @@ export default function DriverPayments() {
                   </div>
                 </div>
               </CardContent>
-            </Card></EffectCard>
+            </Card></ParticleHover>
 
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-2">

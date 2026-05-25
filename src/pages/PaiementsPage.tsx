@@ -10,7 +10,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
-import { EffectCard, SpotlightSection } from '../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../components/MagicBento'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
@@ -187,32 +187,32 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
 
           {/* ── Stat cards ── */}
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <EffectCard className="rounded-2xl"><StatCard
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Total Collecté (Mois)"
               value="4.2M"
               sub="XAF"
               Icon={TrendingUp}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Paiements en Attente"
               value="12"
               Icon={Wallet}
               iconBg="bg-orange-50 dark:bg-orange-950/40"
               iconColor="text-orange-600 dark:text-orange-300"
-            /></EffectCard>
-            <EffectCard className="rounded-2xl"><StatCard
+            /></ParticleHover>
+            <ParticleHover className="rounded-2xl"><StatCard
               label="Taux de Recouvrement"
               value="92%"
               Icon={TrendingUp}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
               iconColor="text-blue-600 dark:text-blue-300"
-            /></EffectCard>
+            /></ParticleHover>
           </div>
 
           {/* ── Main Card : Historique ── */}
-          <EffectCard className="rounded-2xl"><Card>
+          <ParticleHover className="rounded-2xl"><Card>
             <CardHeader className="p-5 pb-4">
               <CardTitle className="text-base">Historique des Transactions</CardTitle>
             </CardHeader>
@@ -377,7 +377,7 @@ export default function PaiementsPage({ theme, onToggleTheme }: PaiementsPagePro
                 </div>
               </div>
             </CardContent>
-          </Card></EffectCard>
+          </Card></ParticleHover>
         </main>
       </div>
       </SpotlightSection>

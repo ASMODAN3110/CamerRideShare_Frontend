@@ -2,9 +2,9 @@
   --hue: 27;
   --sat: 69%;
   --white: hsl(0, 0%, 100%);
-  --purple-primary: rgba(14, 165, 233, 1);
-  --purple-glow: rgba(14, 165, 233, 0.2);
-  --purple-border: rgba(14, 165, 233, 0.8);
+  --sky-primary: rgba(14, 165, 233, 1);
+  --sky-glow: rgba(14, 165, 233, 0.2);
+  --sky-border: rgba(14, 165, 233, 0.8);
   --border-color: #2F293A;
   --background-dark: #120F17;
   color-scheme: light dark;
@@ -20,7 +20,7 @@
 .particle-container:hover {
   box-shadow:
     0 4px 20px rgba(46, 24, 78, 0.2),
-    0 0 30px var(--purple-glow);
+    0 0 30px var(--sky-glow);
 }
 
 .particle {
@@ -28,7 +28,7 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--purple-primary);
+  background: var(--sky-primary);
   box-shadow: 0 0 6px rgba(14, 165, 233, 0.6);
   pointer-events: none;
   z-index: 100;
@@ -53,6 +53,8 @@
   --glow-y: 50%;
   --glow-intensity: 0;
   --glow-radius: 200px;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 .effect-border-glow::after {
@@ -76,19 +78,15 @@
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
-  opacity: 1;
+  opacity: calc(var(--glow-intensity) * 1);
   transition: opacity 0.3s ease;
   z-index: 1;
 }
 
-.effect-border-glow:hover::after {
-  opacity: 1;
-}
-
 .effect-border-glow:hover {
   box-shadow:
-    0 4px 20px rgba(46, 24, 78, 0.4),
-    0 0 30px var(--purple-glow);
+    0 4px 20px rgba(14, 165, 233, 0.3),
+    0 0 30px var(--sky-glow);
 }
 
 /* ── Global spotlight ────────────────────────────────────────────────── */
@@ -214,19 +212,15 @@
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
-  opacity: 1;
+  opacity: calc(var(--glow-intensity) * 1);
   transition: opacity 0.3s ease;
   z-index: 1;
 }
 
-.magic-bento-card--border-glow:hover::after {
-  opacity: 1;
-}
-
 .magic-bento-card--border-glow:hover {
   box-shadow:
-    0 4px 20px rgba(46, 24, 78, 0.4),
-    0 0 30px var(--purple-glow);
+    0 4px 20px rgba(14, 165, 233, 0.3),
+    0 0 30px var(--sky-glow);
 }
 
 /* ── Responsive grid ─────────────────────────────────────────────────── */

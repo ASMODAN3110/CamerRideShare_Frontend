@@ -10,7 +10,7 @@ import {
   Send,
 } from 'lucide-react'
 
-import { EffectCard, SpotlightSection } from '../../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
@@ -124,7 +124,7 @@ export default function DriverSupport() {
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {/* Colonne gauche : FAQ */}
               <div className="space-y-5">
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-3">
                     <CardTitle className="text-base">Foire Aux Questions</CardTitle>
                   </CardHeader>
@@ -158,10 +158,10 @@ export default function DriverSupport() {
                       })}
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
 
                 {/* Contact Direct */}
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <Headphones className="h-4 w-4 text-slate-500" />
@@ -191,10 +191,10 @@ export default function DriverSupport() {
                       </Button>
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
 
                 {/* Espace sécurisé */}
-                <EffectCard className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardContent className="flex items-start gap-4 p-5">
                     <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
                       <Lock className="h-5 w-5" />
@@ -209,12 +209,12 @@ export default function DriverSupport() {
                       </p>
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
               </div>
 
               {/* Colonne droite : Formulaire de signalement */}
               <div>
-                <EffectCard className="rounded-2xl h-full"><Card className="flex h-full flex-col rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+                <ParticleHover className="rounded-2xl h-full"><Card className="flex h-full flex-col rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                   <CardHeader className="p-5 pb-3">
                     <CardTitle className="text-base">Signaler un problème</CardTitle>
                   </CardHeader>
@@ -295,7 +295,7 @@ export default function DriverSupport() {
                       </Button>
                     </div>
                   </CardContent>
-                </Card></EffectCard>
+                </Card></ParticleHover>
               </div>
             </div>
 

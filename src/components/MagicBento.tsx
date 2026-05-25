@@ -4,7 +4,7 @@ import './MagicBento.css'
 
 const DEFAULT_PARTICLE_COUNT = 12
 const DEFAULT_SPOTLIGHT_RADIUS = 300
-const DEFAULT_GLOW_COLOR = '132, 0, 255'
+const DEFAULT_GLOW_COLOR = '14, 165, 233'
 const MOBILE_BREAKPOINT = 768
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -84,9 +84,9 @@ export function EffectCard({
   disableAnimations = false,
   particleCount = DEFAULT_PARTICLE_COUNT,
   glowColor = DEFAULT_GLOW_COLOR,
-  enableTilt = true,
+  enableTilt = false,
   clickEffect = true,
-  enableMagnetism = true,
+  enableMagnetism = false,
   enableBorderGlow = true,
 }: EffectCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
@@ -251,6 +251,120 @@ export function EffectCard({
       className={`particle-container ${borderGlowClass} ${className}`}
       style={{ ...style, position: 'relative', overflow: 'hidden' }}
     >
+      {children}
+    </div>
+  )
+}
+
+// ─── ParticleHover ───────────────────────────────────────────────────────
+// Léger wrapper : particules au survol + bordure lumineuse (::after).
+// Sans tilt, sans magnétisme.
+
+interface ParticleHoverProps {
+  children?: React.ReactNode
+  className?: string
+  particleCount?: number
+  glowColor?: string
+}
+
+export function ParticleHover({
+  children,
+  className = '',
+  particleCount = DEFAULT_PARTICLE_COUNT,
+  glowColor = DEFAULT_GLOW_COLOR,
+}: ParticleHoverProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const particlesRef = useRef<HTMLElement[]>([])
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const isHoveredRef = useRef(false)
+  const memoizedParticles = useRef<HTMLElement[]>([])
+  const particlesInitialized = useRef(false)
+
+  const initializeParticles = useCallback(() => {
+    if (particlesInitialized.current || !cardRef.current) return
+    const { width, height } = cardRef.current.getBoundingClientRect()
+    memoizedParticles.current = Array.from({ length: particleCount }, () =>
+      createParticleElement(Math.random() * width, Math.random() * height, glowColor),
+    )
+    particlesInitialized.current = true
+  }, [particleCount, glowColor])
+
+  const clearAllParticles = useCallback(() => {
+    timeoutsRef.current.forEach(clearTimeout)
+    timeoutsRef.current = []
+    particlesRef.current.forEach((particle) => {
+      gsap.to(particle, {
+        scale: 0,
+        opacity: 0,
+        duration: 0.3,
+        ease: 'back.in(1.7)',
+        onComplete: () => particle.parentNode?.removeChild(particle),
+      })
+    })
+    particlesRef.current = []
+  }, [])
+
+  const animateParticles = useCallback(() => {
+    if (!cardRef.current || !isHoveredRef.current) return
+    if (!particlesInitialized.current) initializeParticles()
+
+    memoizedParticles.current.forEach((particle, index) => {
+      const timeoutId = setTimeout(() => {
+        if (!isHoveredRef.current || !cardRef.current) return
+        const clone = particle.cloneNode(true) as HTMLElement
+        cardRef.current!.appendChild(clone)
+        particlesRef.current.push(clone)
+
+        gsap.fromTo(clone, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)' })
+        gsap.to(clone, {
+          x: (Math.random() - 0.5) * 100,
+          y: (Math.random() - 0.5) * 100,
+          rotation: Math.random() * 360,
+          duration: 2 + Math.random() * 2,
+          ease: 'none',
+          repeat: -1,
+          yoyo: true,
+        })
+        gsap.to(clone, {
+          opacity: 0.3,
+          duration: 1.5,
+          ease: 'power2.inOut',
+          repeat: -1,
+          yoyo: true,
+        })
+      }, index * 100)
+
+      timeoutsRef.current.push(timeoutId)
+    })
+  }, [initializeParticles])
+
+  useEffect(() => {
+    if (!cardRef.current) return
+    const element = cardRef.current
+
+    const handleMouseEnter = () => {
+      isHoveredRef.current = true
+      animateParticles()
+    }
+
+    const handleMouseLeave = () => {
+      isHoveredRef.current = false
+      clearAllParticles()
+    }
+
+    element.addEventListener('mouseenter', handleMouseEnter)
+    element.addEventListener('mouseleave', handleMouseLeave)
+
+    return () => {
+      isHoveredRef.current = false
+      element.removeEventListener('mouseenter', handleMouseEnter)
+      element.removeEventListener('mouseleave', handleMouseLeave)
+      clearAllParticles()
+    }
+  }, [animateParticles, clearAllParticles])
+
+  return (
+    <div ref={cardRef} className={className} style={{ position: 'relative', overflow: 'hidden' }}>
       {children}
     </div>
   )

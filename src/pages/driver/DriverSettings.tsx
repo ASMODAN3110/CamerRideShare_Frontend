@@ -12,7 +12,7 @@ import {
   User,
 } from 'lucide-react'
 
-import { EffectCard, SpotlightSection } from '../../components/MagicBento'
+import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
 import { Avatar } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
@@ -110,7 +110,7 @@ export default function DriverSettings() {
             </div>
 
             {/* Informations personnelles */}
-            <EffectCard className="rounded-2xl">
+            <ParticleHover className="rounded-2xl">
               <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-5 pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -159,10 +159,10 @@ export default function DriverSettings() {
                   </Button>
                 </CardContent>
               </Card>
-            </EffectCard>
+            </ParticleHover>
 
             {/* Sécurité */}
-            <EffectCard className="rounded-2xl">
+            <ParticleHover className="rounded-2xl">
               <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-5 pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -284,10 +284,10 @@ export default function DriverSettings() {
                   </div>
                 </CardContent>
               </Card>
-            </EffectCard>
+            </ParticleHover>
 
             {/* Langue & Affichage */}
-            <EffectCard className="rounded-2xl">
+            <ParticleHover className="rounded-2xl">
               <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardHeader className="p-5 pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -312,10 +312,10 @@ export default function DriverSettings() {
                   </div>
                 </CardContent>
               </Card>
-            </EffectCard>
+            </ParticleHover>
 
             {/* Déconnexion */}
-            <EffectCard className="rounded-2xl">
+            <ParticleHover className="rounded-2xl">
               <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
                 <CardContent className="p-5">
                   <Button
@@ -328,7 +328,7 @@ export default function DriverSettings() {
                   </Button>
                 </CardContent>
               </Card>
-            </EffectCard>
+            </ParticleHover>
 
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-2">
