@@ -91,22 +91,31 @@ function revenuePctToHeight(pct: number) {
   return Math.max(0, Math.min(100, pct * 0.98))
 }
 
+function buildConicGradient(parts: Array<{ value: number; color: string }>) {
+  const total = parts.reduce((acc, p) => acc + p.value, 0) || 1
+
+  return parts
+    .reduce<{ acc: number; segments: string[] }>(
+      (state, p) => {
+        const start = (state.acc / total) * 100
+        const nextAcc = state.acc + p.value
+        const end = (nextAcc / total) * 100
+        return {
+          acc: nextAcc,
+          segments: [...state.segments, `${p.color} ${start}% ${end}%`],
+        }
+      },
+      { acc: 0, segments: [] },
+    )
+    .segments.join(', ')
+}
+
 function DonutChart({
   parts,
 }: {
   parts: Array<{ label: string; value: number; color: string }>
 }) {
-  const total = parts.reduce((acc, p) => acc + p.value, 0) || 1
-  let current = 0
-
-  const segments = parts
-    .map((p) => {
-      const start = (current / total) * 100
-      current += p.value
-      const end = (current / total) * 100
-      return `${p.color} ${start}% ${end}%`
-    })
-    .join(', ')
+  const segments = buildConicGradient(parts)
 
   return (
     <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between sm:gap-6">

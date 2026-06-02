@@ -174,9 +174,6 @@ function RevenueHistoryTable(props: { rows: Transaction[] }) {
         <TableBody className="divide-y divide-slate-100 bg-white dark:divide-slate-800/60 dark:bg-transparent">
           {props.rows.map((tx) => {
             const signed = formatXafSigned(tx.amountXaf)
-            const variant = statusVariant(tx.status)
-            const statusBadgeVariant = variant === 'default' ? undefined : variant
-            const badgeColor = statusBadgeVariant ?? 'default'
 
             return (
               <TableRow
@@ -195,7 +192,7 @@ function RevenueHistoryTable(props: { rows: Transaction[] }) {
                   <span className="text-slate-600 dark:text-slate-200">{methodLabel(tx.method)}</span>
                 </TableCell>
                 <TableCell className="px-5 py-3.5">
-                  <Badge variant={badgeColor as any} className="gap-1.5 px-2.5 py-1">
+                  <Badge variant={statusVariant(tx.status)} className="gap-1.5 px-2.5 py-1">
                     {statusBadgeLabel(tx.status)}
                   </Badge>
                 </TableCell>
