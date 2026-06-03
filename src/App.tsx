@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import ConnexionPage from './pages/ConnexionPage.tsx'
 import DashboardPage from './pages/DashboardPage.tsx'
@@ -16,6 +16,11 @@ import DriverDashboardPage from './pages/driver/DriverDashboard.tsx'
 import DriverPaymentsPage from './pages/driver/DriverPayments.tsx'
 import DriverSupportPage from './pages/driver/DriverSupport.tsx'
 import DriverSettingsPage from './pages/driver/DriverSettings.tsx'
+import CatchAllRedirect from './auth/CatchAllRedirect.tsx'
+import GuestOnly from './auth/GuestOnly.tsx'
+import RequireAuth from './auth/RequireAuth.tsx'
+import RequireRole from './auth/RequireRole.tsx'
+import RootRedirect from './auth/RootRedirect.tsx'
 
 function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -31,43 +36,57 @@ function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+
   return (
     <BrowserRouter>
       <div className="relative min-h-screen">
         <Routes>
-          <Route path="/" element={<Navigate to="/inscription" replace />} />
-          <Route path="/inscription" element={<InscriptionPage />} />
-          <Route path="/connexion" element={<ConnexionPage />} />
-          <Route
-            path="/dashboard"
-            element={<DashboardPage theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />}
-          />
-          <Route
-            path="/parc"
-            element={<ParcPage theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />}
-          />
-          <Route
-            path="/paiements"
-            element={<PaiementsPage theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />}
-          />
-          <Route
-            path="/investisseurs"
-            element={<InvestisseursPage theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />}
-          />
-          <Route
-            path="/parametres"
-            element={<ParametresPage theme={theme} onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />}
-          />
-          <Route path="/investor-dashboard" element={<InvestorDashboardPage />} />
-          <Route path="/investor-fleet" element={<InvestorFleetPage />} />
-          <Route path="/investor-revenues" element={<RevenueHistoryPage />} />
-          <Route path="/investor-reports" element={<InvestorReportsPage />} />
-          <Route path="/investor-settings" element={<InvestorSettingsPage />} />
-          <Route path="/driver-dashboard" element={<DriverDashboardPage />} />
-          <Route path="/driver-payments" element={<DriverPaymentsPage />} />
-          <Route path="/driver-support" element={<DriverSupportPage />} />
-          <Route path="/driver-settings" element={<DriverSettingsPage />} />
-          <Route path="*" element={<Navigate to="/connexion" replace />} />
+          <Route path="/" element={<RootRedirect />} />
+
+          <Route element={<GuestOnly />}>
+            <Route path="/inscription" element={<InscriptionPage />} />
+            <Route path="/connexion" element={<ConnexionPage />} />
+          </Route>
+
+          <Route element={<RequireAuth />}>
+            <Route element={<RequireRole allowed={['ADMIN']} />}>
+              <Route
+                path="/dashboard"
+                element={<DashboardPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route path="/parc" element={<ParcPage theme={theme} onToggleTheme={onToggleTheme} />} />
+              <Route
+                path="/paiements"
+                element={<PaiementsPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route
+                path="/investisseurs"
+                element={<InvestisseursPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route
+                path="/parametres"
+                element={<ParametresPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+            </Route>
+
+            <Route element={<RequireRole allowed={['INVESTOR']} />}>
+              <Route path="/investor-dashboard" element={<InvestorDashboardPage />} />
+              <Route path="/investor-fleet" element={<InvestorFleetPage />} />
+              <Route path="/investor-revenues" element={<RevenueHistoryPage />} />
+              <Route path="/investor-reports" element={<InvestorReportsPage />} />
+              <Route path="/investor-settings" element={<InvestorSettingsPage />} />
+            </Route>
+
+            <Route element={<RequireRole allowed={['DRIVER']} />}>
+              <Route path="/driver-dashboard" element={<DriverDashboardPage />} />
+              <Route path="/driver-payments" element={<DriverPaymentsPage />} />
+              <Route path="/driver-support" element={<DriverSupportPage />} />
+              <Route path="/driver-settings" element={<DriverSettingsPage />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<CatchAllRedirect />} />
         </Routes>
       </div>
     </BrowserRouter>

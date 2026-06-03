@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from './ui/button'
 import { useMemo } from 'react'
+import { useLogout } from '../auth/useLogout'
 
 type DriverSidebarProps = {
   sidebarOpen: boolean
@@ -16,6 +17,7 @@ type DriverSidebarProps = {
 export default function DriverSidebar(props: DriverSidebarProps) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const handleLogout = useLogout()
 
   const items = useMemo(() => {
     return [
@@ -127,7 +129,7 @@ export default function DriverSidebar(props: DriverSidebarProps) {
                 </div>
                 <Button
                   type="button"
-                  onClick={() => navigate('/connexion')}
+                  onClick={handleLogout}
                   className="mt-3 w-full text-left text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
                 >
                   Déconnexion
@@ -196,7 +198,7 @@ export default function DriverSidebar(props: DriverSidebarProps) {
             </div>
             <Button
               type="button"
-              onClick={() => navigate('/connexion')}
+              onClick={handleLogout}
               className="mt-3 w-full text-left text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
             >
               Déconnexion

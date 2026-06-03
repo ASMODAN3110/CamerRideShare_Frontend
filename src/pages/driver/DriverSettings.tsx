@@ -14,6 +14,7 @@ import {
 
 import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
+import { useLogout } from '../../auth/useLogout'
 import { Avatar } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
@@ -43,6 +44,7 @@ const DRIVER = {
 // ─── DriverSettings ─────────────────────────────────────────────────────────
 
 export default function DriverSettings() {
+  const logoutAndRedirect = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme')
@@ -83,8 +85,10 @@ export default function DriverSettings() {
     window.alert('Configuration 2FA (mock) — page à implémenter.')
   }
 
-  const handleLogout = () => {
-    window.alert('Déconnexion (mock) — redirection vers la page de connexion.')
+  const onLogout = () => {
+    const ok = window.confirm('Confirmer la déconnexion ?')
+    if (!ok) return
+    logoutAndRedirect()
   }
 
   return (
@@ -320,7 +324,7 @@ export default function DriverSettings() {
                 <CardContent className="p-5">
                   <Button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={onLogout}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 dark:border-red-900/40 dark:bg-slate-900/40 dark:text-red-400 dark:hover:bg-red-950/20"
                   >
                     <LogOut className="h-4 w-4" />

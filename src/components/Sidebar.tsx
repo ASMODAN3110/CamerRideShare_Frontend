@@ -3,6 +3,7 @@ import { CreditCard, LayoutDashboard, MapPin, Settings, Users, X } from 'lucide-
 import { Menu } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from './ui/button'
+import { useLogout } from '../auth/useLogout'
 
 type SidebarProps = {
   sidebarOpen: boolean
@@ -14,6 +15,7 @@ type SidebarProps = {
 export default function Sidebar(props: SidebarProps) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const handleLogout = useLogout()
 
   const items: Array<{ label: string; icon: LucideIcon; href: string }> = [
     { label: 'Tableau de bord', icon: LayoutDashboard, href: '/dashboard' },
@@ -120,7 +122,7 @@ export default function Sidebar(props: SidebarProps) {
                 </div>
                 <Button
                   type="button"
-                  onClick={() => navigate('/connexion')}
+                  onClick={handleLogout}
                   className="mt-3 w-full text-left text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
                 >
                   Déconnexion
@@ -188,7 +190,7 @@ export default function Sidebar(props: SidebarProps) {
             </div>
             <Button
               type="button"
-              onClick={() => navigate('/connexion')}
+              onClick={handleLogout}
               className="mt-3 w-full text-left text-sm font-semibold text-red-600 hover:underline dark:text-red-400"
             >
               Déconnexion

@@ -10,6 +10,43 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Dev only: one-time purge of any legacy service worker / caches that may serve
+      // stale Vite modules (previously caused React Compiler "useMemoCache" crashes),
+      // then reload once so fresh modules load.
+      (function () {
+        var isDev =
+          /localhost|127\.0\.0\.1/.test(location.hostname) ||
+          location.port === '8081' ||
+          location.port === '5173'
+        if (!isDev) return
+
+        var flag = 'crs-dev-cache-cleared-v4'
+        if (sessionStorage.getItem(flag) === '1') return
+        sessionStorage.setItem(flag, '1')
+
+        var tasks = []
+        if ('serviceWorker' in navigator) {
+          tasks.push(
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister() }))
+            }),
+          )
+        }
+        if (window.caches && caches.keys) {
+          tasks.push(
+            caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+            }),
+          )
+        }
+        if (tasks.length) {
+          Promise.all(tasks).then(function () {
+            location.reload()
+          })
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

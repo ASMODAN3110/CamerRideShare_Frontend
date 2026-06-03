@@ -5,7 +5,14 @@ services:
       dockerfile: Dockerfile
       target: dev
     container_name: camerrideshare-frontend
+    environment:
+      - VITE_API_PROXY_TARGET=http://host.docker.internal:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8081:5173"
     volumes:
       - ./src:/app/src
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts

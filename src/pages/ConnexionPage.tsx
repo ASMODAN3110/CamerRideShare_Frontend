@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AnimatedContent from '../components/AnimatedContent'
 import { Button } from '../components/ui/button'
+import { useAuth } from '../auth/useAuth'
+import { resolvePostLoginPath } from '../auth/routeAccess'
+import { login as loginRequest } from '../services/authService'
+import { ApiError } from '../types/auth'
 
 function IconPhone(props: { className?: string }) {
   return (
@@ -26,87 +30,124 @@ function IconLock(props: { className?: string }) {
 
 export default function ConnexionPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login } = useAuth()
   const [telephone, setTelephone] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const canSubmit = useMemo(() => {
-    return telephone.trim().length > 0 && motDePasse.trim().length > 0
+    return telephone.trim().length > 0 && motDePasse.trim().length >= 6
   }, [telephone, motDePasse])
+
+  const fromPath =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'from' in location.state &&
+    typeof (location.state as { from?: string }).from === 'string'
+      ? (location.state as { from: string }).from
+      : null
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-slate-900">
         <div className="flex flex-col md:flex-row">
-          {/* Colonne gauche : formulaire */}
-          <AnimatedContent className="w-full md:w-1/2"><div className="w-full p-8 md:p-12">
-            <img src="/logo.png" alt="CamerRideShare" className="mx-auto mb-6 h-48 w-auto" />
-            <h2 className="text-center text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Connexion
-            </h2>
-            <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-300">
-              Entrez vos informations pour continuer.
-            </p>
+          <AnimatedContent className="w-full md:w-1/2">
+            <div className="w-full p-8 md:p-12">
+              <img src="/logo.png" alt="CamerRideShare" className="mx-auto mb-6 h-48 w-auto" />
+              <h2 className="text-center text-2xl font-semibold text-slate-900 dark:text-slate-50">Connexion</h2>
+              <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-300">
+                Entrez vos informations pour continuer.
+              </p>
 
-            <form
-              className="mt-8 flex flex-col gap-4"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (!canSubmit) return
-                // TODO: appeler votre API de connexion
-                console.log({ telephone, motDePasse })
-                navigate('/dashboard')
-              }}
-            >
-              <label className="flex flex-col gap-2">
-                <span className="sr-only">Numéro de téléphone</span>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <IconPhone className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                  <input
-                    value={telephone}
-                    onChange={(e) => setTelephone(e.target.value)}
-                    placeholder="Numéro de téléphone"
-                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                  />
-                </div>
-              </label>
+              <form
+                className="mt-8 flex flex-col gap-4"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (!canSubmit || isSubmitting) return
 
-              <label className="flex flex-col gap-2">
-                <span className="sr-only">Mot de passe</span>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <IconLock className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                  <input
-                    value={motDePasse}
-                    onChange={(e) => setMotDePasse(e.target.value)}
-                    placeholder="Mot de passe"
-                    type="password"
-                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                  />
-                </div>
-              </label>
+                  setError(null)
+                  setIsSubmitting(true)
 
-              <Button
-                type="submit"
-                disabled={!canSubmit}
-                className="mt-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600 disabled:text-white disabled:opacity-100"
+                  try {
+                    const data = await loginRequest({
+                      phoneNumber: telephone.trim(),
+                      password: motDePasse,
+                    })
+                    login(data.access_token, data.user)
+                    navigate(resolvePostLoginPath(fromPath, data.user.role), { replace: true })
+                  } catch (err) {
+                    if (err instanceof ApiError && err.statusCode === 401) {
+                      setError('Identifiants invalides.')
+                    } else if (err instanceof ApiError) {
+                      setError(err.message)
+                    } else {
+                      setError('Impossible de se connecter. Vérifiez que le serveur est démarré.')
+                    }
+                  } finally {
+                    setIsSubmitting(false)
+                  }
+                }}
               >
-                Se connecter
-              </Button>
+                {error ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+                    {error}
+                  </div>
+                ) : null}
 
-              <div className="mt-6 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">
-                PAS ENCORE INSCRIT ?
-              </div>
-              <Button
-                type="button"
-                onClick={() => navigate('/inscription')}
-                className="mt-3 text-center text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300"
-              >
-                S&apos;inscrire
-              </Button>
-            </form>
-          </div></AnimatedContent>
+                <label className="flex flex-col gap-2">
+                  <span className="sr-only">Numéro de téléphone</span>
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <IconPhone className="h-5 w-5 text-slate-500 dark:text-slate-300" />
+                    <input
+                      value={telephone}
+                      onChange={(e) => setTelephone(e.target.value)}
+                      placeholder="Numéro de téléphone"
+                      autoComplete="tel"
+                      className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
+                    />
+                  </div>
+                </label>
 
-          {/* Colonne droite : CTA */}
-          <div className="relative w-full overflow-hidden bg-blue-700 p-8 text-white shadow-xl shadow-blue-900/25 rounded-2xl md:w-1/2 md:p-12 md:rounded-tl-[4.5rem] md:rounded-bl-[4.5rem] md:rounded-tr-2xl md:rounded-br-2xl dark:bg-blue-900">
+                <label className="flex flex-col gap-2">
+                  <span className="sr-only">Mot de passe</span>
+                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <IconLock className="h-5 w-5 text-slate-500 dark:text-slate-300" />
+                    <input
+                      value={motDePasse}
+                      onChange={(e) => setMotDePasse(e.target.value)}
+                      placeholder="Mot de passe"
+                      type="password"
+                      autoComplete="current-password"
+                      className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
+                    />
+                  </div>
+                </label>
+
+                <Button
+                  type="submit"
+                  disabled={!canSubmit || isSubmitting}
+                  className="mt-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600 disabled:text-white disabled:opacity-100"
+                >
+                  {isSubmitting ? 'Connexion…' : 'Se connecter'}
+                </Button>
+
+                <div className="mt-6 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">
+                  PAS ENCORE INSCRIT ?
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => navigate('/inscription')}
+                  className="mt-3 text-center text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300"
+                >
+                  S&apos;inscrire
+                </Button>
+              </form>
+            </div>
+          </AnimatedContent>
+
+          <div className="relative w-full overflow-hidden rounded-2xl bg-blue-700 p-8 text-white shadow-xl shadow-blue-900/25 md:w-1/2 md:rounded-tl-[4.5rem] md:rounded-bl-[4.5rem] md:rounded-tr-2xl md:rounded-br-2xl dark:bg-blue-900 md:p-12">
             <div className="pointer-events-none absolute -top-20 -right-24 z-0 h-80 w-80 rounded-full bg-blue-900/20 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-24 -left-20 z-0 h-80 w-80 rounded-full bg-blue-900/15 blur-2xl" />
 
@@ -132,4 +173,3 @@ export default function ConnexionPage() {
     </div>
   )
 }
-

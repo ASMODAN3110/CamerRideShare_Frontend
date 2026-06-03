@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AnimatedContent from '../components/AnimatedContent'
 import { Button } from '../components/ui/button'
+import { register as registerRequest } from '../services/authService'
+import { ApiError, type UserRole } from '../types/auth'
+import { roleLabel } from '../auth/roles'
 
 function IconUser(props: { className?: string }) {
   return (
@@ -65,14 +68,21 @@ function IconApple(props: { className?: string }) {
   )
 }
 
+const ROLES: UserRole[] = ['DRIVER', 'INVESTOR', 'ADMIN']
+
 export default function InscriptionPage() {
   const navigate = useNavigate()
   const [nom, setNom] = useState('')
   const [telephone, setTelephone] = useState('')
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<UserRole>('DRIVER')
   const [motDePasse, setMotDePasse] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const canSubmit = useMemo(() => {
-    return nom.trim().length > 0 && telephone.trim().length > 0 && motDePasse.trim().length > 0
+    return nom.trim().length > 0 && telephone.trim().length > 0 && motDePasse.trim().length >= 6
   }, [nom, telephone, motDePasse])
 
   return (
@@ -92,13 +102,47 @@ export default function InscriptionPage() {
 
             <form
               className="mt-8 flex flex-col gap-4"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault()
-                if (!canSubmit) return
-                // TODO: appeler votre API d'inscription
-                console.log({ nom, telephone, motDePasse })
+                if (!canSubmit || isSubmitting) return
+
+                setError(null)
+                setSuccess(null)
+                setIsSubmitting(true)
+
+                try {
+                  await registerRequest({
+                    phoneNumber: telephone.trim(),
+                    password: motDePasse,
+                    fullName: nom.trim(),
+                    role,
+                    email: email.trim() || undefined,
+                  })
+                  setSuccess('Compte créé avec succès. Vous pouvez vous connecter.')
+                  setTimeout(() => navigate('/connexion'), 1200)
+                } catch (err) {
+                  if (err instanceof ApiError && err.statusCode === 409) {
+                    setError('Ce numéro de téléphone ou cet email est déjà utilisé.')
+                  } else if (err instanceof ApiError) {
+                    setError(err.message)
+                  } else {
+                    setError("Impossible de créer le compte. Vérifiez que le serveur est démarré.")
+                  }
+                } finally {
+                  setIsSubmitting(false)
+                }
               }}
             >
+              {error ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+                  {error}
+                </div>
+              ) : null}
+              {success ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  {success}
+                </div>
+              ) : null}
               <label className="flex flex-col gap-2">
                 <span className="sr-only">Nom complet</span>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
@@ -126,14 +170,44 @@ export default function InscriptionPage() {
               </label>
 
               <label className="flex flex-col gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email (optionnel)</span>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                  <input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@exemple.com"
+                    type="email"
+                    autoComplete="email"
+                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
+                  />
+                </div>
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Rôle</span>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {roleLabel(r)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-2">
                 <span className="sr-only">Mot de passe</span>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
                   <IconLock className="h-5 w-5 text-slate-500 dark:text-slate-300" />
                   <input
                     value={motDePasse}
                     onChange={(e) => setMotDePasse(e.target.value)}
-                    placeholder="Mot de passe"
+                    placeholder="Mot de passe (min. 6 caractères)"
                     type="password"
+                    autoComplete="new-password"
                     className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
                   />
                 </div>
@@ -141,10 +215,10 @@ export default function InscriptionPage() {
 
               <Button
                 type="submit"
-                disabled={!canSubmit}
+                disabled={!canSubmit || isSubmitting}
                 className="mt-2 rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-blue-700 disabled:text-white disabled:opacity-100 dark:bg-blue-900 dark:hover:bg-blue-800 dark:disabled:bg-blue-900"
               >
-                S&apos;inscrire
+                {isSubmitting ? 'Inscription…' : "S'inscrire"}
               </Button>
 
               <div className="mt-1 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">

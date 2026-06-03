@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLogout } from '../../auth/useLogout'
 import { Lock, LogOut, Mail, Shield, User as UserIcon } from 'lucide-react'
 
 import InvestorSidebar from '../../components/InvestorSidebar'
@@ -71,7 +71,7 @@ function Modal({
 }
 
 export default function InvestorSettings() {
-  const navigate = useNavigate()
+  const handleLogout = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [theme, setTheme] = useState<Theme>(() => {
@@ -112,8 +112,7 @@ export default function InvestorSettings() {
   const onLogout = () => {
     const ok = window.confirm('Confirmer la déconnexion ?')
     if (!ok) return
-    console.log('[InvestorSettings] logout (mock)')
-    navigate('/connexion')
+    handleLogout()
   }
 
   const onSaveProfile = () => {

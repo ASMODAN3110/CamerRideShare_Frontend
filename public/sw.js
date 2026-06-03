@@ -1,38 +1,22 @@
-/* Basic service worker for offline support.
-   Note: in dev mode, it may be hard to see changes without a hard refresh. */
+/* Self-destruct worker: clears stale Vite dev caches (incl. React Compiler bundles)
+   then unregisters. Production builds should register a different worker later. */
 
-const CACHE_NAME = 'camerrideshare-cache-v2'
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key)))),
-      )
-      .then(() => self.clients.claim()),
-  )
-})
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(['/'])
-    }),
+    (async () => {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((key) => caches.delete(key)))
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      await Promise.all(clients.map((client) => client.navigate(client.url)))
+      await self.registration.unregister()
+    })(),
   )
 })
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200) return response
-        const copy = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
-        return response
-      })
-    }),
-  )
+  event.respondWith(fetch(event.request))
 })
-
