@@ -37,6 +37,26 @@ export default defineConfig({
         target: API_PROXY_TARGET,
         changeOrigin: true,
       },
+      '/admin': {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+      },
+      '/transactions': {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+      },
+      '/payments': {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+      },
+      '/incidents': {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+      },
+      '/invitations': {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+      },
     },
   },
 })

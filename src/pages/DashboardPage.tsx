@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
   CircleDot,
   CreditCard,
+  DollarSign,
   Gauge,
   MapPin,
-  DollarSign,
   TrendingUp,
   Users,
 } from 'lucide-react'
@@ -15,14 +16,14 @@ import {
   Cell,
   Label,
   Legend,
+  Line,
+  LineChart as RechartsLineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  LineChart as RechartsLineChart,
-  Line,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
 import { ParticleHover, SpotlightSection } from '../components/MagicBento'
@@ -33,7 +34,56 @@ import { Progress } from '../components/ui/progress'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 
+// ─── API services & types ────────────────────────────────────────────────────
+
+import { getAlerts, getDashboardOverview } from '../services/dashboardService'
+import { listTransactions } from '../services/transactionsService'
+import type { Alert, DashboardOverview, Transaction } from '../types/api'
+import { PaymentModal, IncidentModal, InvitationModal } from '../components/ActionModals'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatCompactXAF(amount: number): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M XAF`
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K XAF`
+  return `${amount} XAF`
+}
+
+function formatXAF(amount: number): string {
+  return `${amount.toLocaleString('fr-FR')} XAF`
+}
+
+function formatDeltaPct(pct: number): string {
+  return pct >= 0 ? `+${pct}%` : `${pct}%`
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  const day = d.getDate()
+  const month = d.toLocaleDateString('en-GB', { month: 'short' })
+  const year = d.getFullYear()
+  const hh = d.getHours().toString().padStart(2, '0')
+  const mm = d.getMinutes().toString().padStart(2, '0')
+  return `${day} ${month}, ${year} - ${hh}:${mm}`
+}
+
+function formatPeriodDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.getDate()
+  const month = d.toLocaleDateString('en-GB', { month: 'short' })
+  return `${day} ${month}`
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 0) return '??'
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
 type Role = 'patron' | 'investisseur' | 'conducteur'
+
+// ─── TopStatCard ─────────────────────────────────────────────────────────────
 
 function TopStatCard(props: { title: string; value: string; delta: string; Icon: LucideIcon }) {
   return (
@@ -54,6 +104,8 @@ function TopStatCard(props: { title: string; value: string; delta: string; Icon:
     </div>
   )
 }
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
 
 function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
   const tabs: Array<{ id: Role; label: string; icon: LucideIcon }> = [
@@ -88,10 +140,15 @@ function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
   )
 }
 
-function EtatParcDonutCard() {
-  const parc = { actif: 105, vole: 12, panne: 7 }
-  const total = parc.actif + parc.vole + parc.panne
-  const actifPct = Math.round((parc.actif / total) * 100)
+// ─── EtatParcDonutCard ───────────────────────────────────────────────────────
+
+function EtatParcDonutCard(props: {
+  fleetStatus: DashboardOverview['fleetStatus']
+  total: number
+}) {
+  const { fleetStatus, total } = props
+  const parc = { actif: fleetStatus.active, vole: fleetStatus.stolen, panne: fleetStatus.broken }
+  const actifPct = total > 0 ? Math.round((parc.actif / total) * 100) : 0
 
   const data = useMemo(
     () => [
@@ -160,28 +217,41 @@ function EtatParcDonutCard() {
   )
 }
 
-function TresorerieCard() {
+// ─── TresorerieCard ──────────────────────────────────────────────────────────
+
+function TresorerieCard(props: { treasury: DashboardOverview['treasuryWeekly'] }) {
+  const { treasury } = props
+  const progressPct = treasury.target > 0
+    ? Math.round((treasury.collected / treasury.target) * 100)
+    : 0
+
   return (
     <Card>
       <CardHeader className="p-5 pb-3">
         <div className="flex items-start justify-between gap-4">
           <div>
             <CardTitle className="text-base">Trésorerie Hebdomadaire</CardTitle>
-            <div className="mt-1 text-sm font-medium text-slate-500">20 Oct - 26 Oct</div>
+            <div className="mt-1 text-sm font-medium text-slate-500">
+              {formatPeriodDate(treasury.periodStart)} - {formatPeriodDate(treasury.periodEnd)}
+            </div>
           </div>
           <div className="text-right">
-            <div className="text-lg font-bold text-slate-900 dark:text-slate-50">2.5M / 3.0M XAF</div>
-            <div className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-300">83% Recouvré</div>
+            <div className="text-lg font-bold text-slate-900 dark:text-slate-50">
+              {formatCompactXAF(treasury.collected)} / {formatCompactXAF(treasury.target)}
+            </div>
+            <div className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-300">
+              {progressPct}% Recouvré
+            </div>
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
         <div className="space-y-3">
-          <Progress value={83} className="h-4" aria-label="Progress trésorerie" />
+          <Progress value={progressPct} className="h-4" aria-label="Progression trésorerie" />
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
             <span>0 XAF</span>
-            <span className="text-slate-600 dark:text-slate-300">Objectif: 3.0M XAF</span>
+            <span className="text-slate-600 dark:text-slate-300">Objectif: {formatCompactXAF(treasury.target)}</span>
           </div>
         </div>
       </CardContent>
@@ -189,33 +259,11 @@ function TresorerieCard() {
   )
 }
 
-function AlertesCard() {
-  const alertes = [
-    {
-      name: 'Jean-Paul N.',
-      location: 'Douala Zone B',
-      badge: '3 semaines de retard',
-      amount: '-45,000 XAF',
-      avatar: 'https://i.pravatar.cc/100?img=3',
-      isLink: false,
-    },
-    {
-      name: 'Michel T.',
-      location: 'Yaoundé Central',
-      badge: '2 semaines de retard',
-      amount: '-30,000 XAF',
-      avatar: 'https://i.pravatar.cc/100?img=5',
-      isLink: false,
-    },
-    {
-      name: 'Alain B.',
-      location: 'Bafoussam Ouest',
-      badge: 'Incident Signale',
-      amount: 'Voir details',
-      avatarFallback: 'AB',
-      isLink: true,
-    },
-  ]
+// ─── AlertesCard ─────────────────────────────────────────────────────────────
+
+function AlertesCard(props: { alerts: Alert[] }) {
+  const { alerts } = props
+  const navigate = useNavigate()
 
   return (
     <Card>
@@ -230,63 +278,90 @@ function AlertesCard() {
             </div>
           </div>
           <Badge variant="red" className="px-3 py-1 text-xs">
-            3 Priorités Hautes
+            {alerts.length} Priorité{alerts.length > 1 ? 's' : ''} Haute{alerts.length > 1 ? 's' : ''}
           </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
-        <div className="divide-y divide-slate-200/60">
-          {alertes.map((a) => (
-            <div key={a.name} className="flex items-center justify-between gap-4 py-3">
-              <div className="flex items-center gap-3 min-w-0">
-                {a.avatar ? (
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={a.avatar} alt={a.name} className="h-full w-full rounded-full object-cover" />
-                  </Avatar>
-                ) : (
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>{a.avatarFallback}</AvatarFallback>
-                  </Avatar>
-                )}
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{a.name}</div>
-                  <div className="truncate text-xs text-slate-500 dark:text-slate-400">{a.location}</div>
-                </div>
-              </div>
-
-              <div className="text-right shrink-0">
-                <div className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
-                  {a.badge}
-                </div>
-                <div className="mt-1 text-xs font-semibold">
-                  {a.isLink ? (
-                    <Button type="button" className="text-blue-600 hover:underline dark:text-blue-300">
-                      {a.amount}
-                    </Button>
+        {alerts.length > 0 ? (
+          <div className="divide-y divide-slate-200/60">
+            {alerts.map((a) => (
+              <div key={`${a.type}-${a.id}`} className="flex items-center justify-between gap-4 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  {a.avatarUrl ? (
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={a.avatarUrl} alt={a.driverName} className="h-full w-full rounded-full object-cover" />
+                    </Avatar>
                   ) : (
-                    <span className="text-red-600 dark:text-red-300">{a.amount}</span>
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback>{getInitials(a.driverName)}</AvatarFallback>
+                    </Avatar>
                   )}
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{a.driverName}</div>
+                    <div className="truncate text-xs text-slate-500 dark:text-slate-400">{a.location}</div>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <div className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
+                    {a.label}
+                  </div>
+                  <div className="mt-1 text-xs font-semibold">
+                    {a.type === 'INCIDENT' ? (
+                      <Button
+                        type="button"
+                        className="text-blue-600 hover:underline dark:text-blue-300"
+                        onClick={() => navigate('/parc')}
+                      >
+                        Voir détails
+                      </Button>
+                    ) : a.amount !== undefined ? (
+                      <span
+                        className="text-red-600 dark:text-red-300 cursor-pointer hover:underline"
+                        onClick={() => navigate('/paiements')}
+                      >
+                        {formatXAF(a.amount)}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-8 text-center text-sm text-slate-400">
+            Aucune alerte pour le moment
+          </div>
+        )}
       </CardContent>
     </Card>
   )
 }
 
-function GrandPatronDashboard() {
+// ─── GrandPatronDashboard ────────────────────────────────────────────────────
+
+function GrandPatronDashboard(props: {
+  overview: DashboardOverview
+  alerts: Alert[]
+  transactions: Transaction[]
+  onOpenPayment: () => void
+  onOpenIncident: () => void
+  onOpenInvitation: () => void
+}) {
+  const navigate = useNavigate()
+  const { overview, alerts, transactions, onOpenPayment, onOpenIncident, onOpenInvitation } = props
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="flex flex-col">
-          <EtatParcDonutCard />
+          <EtatParcDonutCard fleetStatus={overview.fleetStatus} total={overview.fleet.total} />
         </div>
         <div className="flex flex-col gap-4">
-          <TresorerieCard />
-          <AlertesCard />
+          <TresorerieCard treasury={overview.treasuryWeekly} />
+          <AlertesCard alerts={alerts} />
         </div>
       </div>
 
@@ -296,6 +371,7 @@ function GrandPatronDashboard() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Button
             type="button"
+                        onClick={onOpenPayment}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             <CreditCard className="h-4 w-4" />
@@ -303,6 +379,7 @@ function GrandPatronDashboard() {
           </Button>
           <Button
             type="button"
+                        onClick={onOpenIncident}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
           >
             <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -310,6 +387,7 @@ function GrandPatronDashboard() {
           </Button>
           <Button
             type="button"
+                        onClick={onOpenInvitation}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
           >
             <Users className="h-4 w-4 text-emerald-600" />
@@ -322,7 +400,7 @@ function GrandPatronDashboard() {
       <Card className="rounded-2xl">
         <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-3">
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">Transactions Récentes</div>
-          <Button type="button" className="text-xs font-semibold text-blue-600 hover:underline">
+          <Button type="button" onClick={() => navigate('/paiements')} className="text-xs font-semibold text-blue-600 hover:underline">
             Tout afficher
           </Button>
         </div>
@@ -338,67 +416,64 @@ function GrandPatronDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="border-t border-slate-200 dark:border-slate-800">
-                <TableCell className="px-5 py-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="https://i.pravatar.cc/100?img=1" alt="Emanuel K." className="h-8 w-8 object-cover" />
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Emanuel K.</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">24 Oct, 2023 - 10:42</TableCell>
-                <TableCell className="px-5 py-3">
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-                    <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                    Vérifié
-                  </span>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">+ 15,000 XAF</TableCell>
-              </TableRow>
-
-              <TableRow className="border-t border-slate-200 dark:border-slate-800">
-                <TableCell className="px-5 py-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="https://i.pravatar.cc/100?img=2" alt="Sarah M." className="h-8 w-8 object-cover" />
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Sarah M.</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">24 Oct, 2023 - 09:15</TableCell>
-                <TableCell className="px-5 py-3">
-                  <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
-                    <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-500" />
-                    En attente
-                  </span>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-300">+ 15,000 XAF</TableCell>
-              </TableRow>
-
-              <TableRow className="border-t border-slate-200 dark:border-slate-800">
-                <TableCell className="px-5 py-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>JM</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Journal Maintenance</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">23 Oct, 2023 - 16:30</TableCell>
-                <TableCell className="px-5 py-3">
-                  <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-800/60 dark:text-slate-200">
-                    Dépense
-                  </span>
-                </TableCell>
-                <TableCell className="px-5 py-3 text-right font-semibold text-red-600 dark:text-red-300">- 4,500 XAF</TableCell>
-              </TableRow>
+              {transactions.length > 0 ? (
+                transactions.map((tx) => (
+                  <TableRow key={tx.id} className="border-t border-slate-200 dark:border-slate-800">
+                    <TableCell className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          {tx.driver.avatarUrl ? (
+                            <AvatarImage
+                              src={tx.driver.avatarUrl}
+                              alt={tx.driver.fullName}
+                              className="h-8 w-8 object-cover"
+                            />
+                          ) : (
+                            <AvatarFallback>{getInitials(tx.driver.fullName)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                            {tx.driver.fullName}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">
+                      {formatDate(tx.createdAt)}
+                    </TableCell>
+                    <TableCell className="px-5 py-3">
+                      {tx.status === 'VERIFIED' ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
+                          <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                          Vérifié
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
+                          <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-500" />
+                          En attente
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className={`px-5 py-3 text-right font-semibold ${
+                        tx.type === 'EXPENSE'
+                          ? 'text-red-600 dark:text-red-300'
+                          : 'text-emerald-600 dark:text-emerald-300'
+                      }`}
+                    >
+                      {tx.type === 'EXPENSE' ? '- ' : '+ '}
+                      {formatXAF(tx.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-12 text-center text-sm text-slate-400">
+                    Aucune transaction récente
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
@@ -406,6 +481,8 @@ function GrandPatronDashboard() {
     </div>
   )
 }
+
+// ─── InvestorDashboard (hidden — gardé pour usage futur) ─────────────────────
 
 function InvestorDashboard() {
   const kpi = { invested: '12.5M XAF', recovered: '10.5M XAF', pct: 83 }
@@ -484,6 +561,8 @@ function InvestorDashboard() {
     </div>
   )
 }
+
+// ─── ConducteurDashboard (hidden — gardé pour usage futur) ───────────────────
 
 function ConducteurDashboard() {
   const ownershipPct = 64
@@ -575,9 +654,56 @@ function ConducteurDashboard() {
   )
 }
 
+// ─── DashboardPage ───────────────────────────────────────────────────────────
+
 export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggleTheme: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [role, setRole] = useState<Role>('patron')
+
+  // ── Données API ──
+  const [overview, setOverview] = useState<DashboardOverview | null>(null)
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // ── Modales ──
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showIncidentModal, setShowIncidentModal] = useState(false)
+  const [showInvitationModal, setShowInvitationModal] = useState(false)
+
+  const refreshDashboard = useCallback(async () => {
+    const [overviewData, alertsData, txsData] = await Promise.all([
+      getDashboardOverview(),
+      getAlerts('high'),
+      listTransactions({ limit: 5, sort: 'desc' }),
+    ])
+    setOverview(overviewData)
+    setAlerts(alertsData)
+    setTransactions(txsData)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadDashboard() {
+      try {
+        setLoading(true)
+        setError(null)
+        await refreshDashboard()
+      } catch (err) {
+        if (cancelled) return
+        const message =
+          err instanceof Error ? err.message : 'Erreur lors du chargement du tableau de bord'
+        setError(message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadDashboard()
+    return () => { cancelled = true }
+  }, [refreshDashboard])
 
   const todayLabel = (() => {
     const d = new Date()
@@ -588,9 +714,14 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
   })()
 
   return (
-      <SpotlightSection>
+    <SpotlightSection>
       <div className="flex">
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={props.theme} onToggleTheme={props.onToggleTheme} />
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          theme={props.theme}
+          onToggleTheme={props.onToggleTheme}
+        />
 
         <main className="flex-1 p-6">
           {/* Hidden tabs: only Grand Patron workspace */}
@@ -609,22 +740,99 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <ParticleHover className="rounded-2xl"><TopStatCard title="Parc Total" value="124" delta="+12%" Icon={MapPin} /></ParticleHover>
-            <ParticleHover className="rounded-2xl"><TopStatCard title="Investisseurs Actifs" value="42" delta="+5%" Icon={Users} /></ParticleHover>
-            <ParticleHover className="rounded-2xl"><TopStatCard title="Revenu Mensuel" value="12.5M XAF" delta="+8%" Icon={DollarSign} /></ParticleHover>
-          </div>
-
-          <div className="mt-5">
-            <GrandPatronDashboard />
-            <div className="hidden">
-              <InvestorDashboard />
-              <ConducteurDashboard />
+          {/* ── État de chargement ── */}
+          {loading && (
+            <div className="mb-6 flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900/40">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <p className="text-sm text-slate-500">Chargement du tableau de bord…</p>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* ── Erreur ── */}
+          {!loading && error && (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 dark:border-red-900/50 dark:bg-red-950/40">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-200">{error}</p>
+              <Button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-2 text-xs font-semibold text-red-600 underline hover:text-red-500 dark:text-red-300"
+              >
+                Réessayer
+              </Button>
+            </div>
+          )}
+
+          {/* ── Contenu ── */}
+          {!loading && !error && overview && (
+            <>
+              {/* Top stat cards */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <ParticleHover className="rounded-2xl">
+                  <TopStatCard
+                    title="Parc Total"
+                    value={String(overview.fleet.total)}
+                    delta={formatDeltaPct(overview.fleet.deltaPct)}
+                    Icon={MapPin}
+                  />
+                </ParticleHover>
+                <ParticleHover className="rounded-2xl">
+                  <TopStatCard
+                    title="Investisseurs Actifs"
+                    value={String(overview.activeInvestors.count)}
+                    delta={formatDeltaPct(overview.activeInvestors.deltaPct)}
+                    Icon={Users}
+                  />
+                </ParticleHover>
+                <ParticleHover className="rounded-2xl">
+                  <TopStatCard
+                    title="Revenu Mensuel"
+                    value={formatCompactXAF(overview.monthlyRevenue.amount)}
+                    delta={formatDeltaPct(overview.monthlyRevenue.deltaPct)}
+                    Icon={DollarSign}
+                  />
+                </ParticleHover>
+              </div>
+
+              <div className="mt-5">
+                <GrandPatronDashboard
+                  overview={overview}
+                  alerts={alerts}
+                  transactions={transactions}
+                  onOpenPayment={() => setShowPaymentModal(true)}
+                  onOpenIncident={() => setShowIncidentModal(true)}
+                  onOpenInvitation={() => setShowInvitationModal(true)}
+                />
+                <div className="hidden">
+                  <InvestorDashboard />
+                  <ConducteurDashboard />
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
-      </SpotlightSection>
+
+      {overview && (
+        <>
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            onSuccess={refreshDashboard}
+          />
+          <IncidentModal
+            isOpen={showIncidentModal}
+            onClose={() => setShowIncidentModal(false)}
+            onSuccess={refreshDashboard}
+          />
+          <InvitationModal
+            isOpen={showInvitationModal}
+            onClose={() => setShowInvitationModal(false)}
+            onSuccess={refreshDashboard}
+          />
+        </>
+      )}
+    </SpotlightSection>
   )
 }
-

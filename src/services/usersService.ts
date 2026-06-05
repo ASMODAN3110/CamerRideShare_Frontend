@@ -1,5 +1,6 @@
 import { apiRequest } from '../lib/apiClient'
 import type { User } from '../types/auth'
+import type { Driver } from '../types/api'
 
 export type CreateUserBody = {
   phoneNumber: string
@@ -19,6 +20,15 @@ export type UpdateUserBody = Partial<{
 
 export function listUsers() {
   return apiRequest<User[]>('/users')
+}
+
+/**
+ * GET /users/drivers
+ * Returns all users with role DRIVER (passwordHash excluded).
+ * Used to populate the driver select in payment/incident forms.
+ */
+export function listDrivers(): Promise<Driver[]> {
+  return apiRequest<Driver[]>('/users/drivers')
 }
 
 export function getUser(id: number) {
