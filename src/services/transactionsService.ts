@@ -1,27 +1,25 @@
 import { apiRequest } from '../lib/apiClient'
-import type { Transaction, CreatePaymentBody, Payment } from '../types/api'
+import type { ListTransactionsParams, PaginatedTransactions } from '../types/api'
 
-/**
- * GET /transactions?limit=10&sort=desc
- * Returns an array of Transaction objects (from Payment table).
- */
-export function listTransactions(
-  params: { limit?: number; sort?: 'asc' | 'desc' } = {},
-): Promise<Transaction[]> {
-  const limit = params.limit ?? 10
+function buildTransactionsQuery(params: ListTransactionsParams = {}): string {
+  const qs = new URLSearchParams()
+  const page = params.page ?? 1
+  const limit = params.limit ?? 20
   const sort = params.sort ?? 'desc'
-  return apiRequest<Transaction[]>(`/transactions?limit=${limit}&sort=${sort}`)
+  qs.set('page', String(page))
+  qs.set('limit', String(limit))
+  qs.set('sort', sort)
+  if (params.search?.trim()) qs.set('search', params.search.trim())
+  if (params.status) qs.set('status', params.status)
+  if (params.type) qs.set('type', params.type)
+  const query = qs.toString()
+  return query ? `?${query}` : ''
 }
 
 /**
- * POST /payments
- * Creates a payment directly in VERIFIED status (admin action).
- * driverId must reference a user with role DRIVER.
- * amount must be >= 1 (XAF integer).
+ * GET /transactions — liste paginée (JWT + ADMIN).
+ * Réponse : { data, meta }.
  */
-export function createPayment(body: CreatePaymentBody): Promise<Payment> {
-  return apiRequest<Payment>('/payments', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
+export function listTransactions(params: ListTransactionsParams = {}): Promise<PaginatedTransactions> {
+  return apiRequest<PaginatedTransactions>(`/transactions${buildTransactionsQuery(params)}`)
 }

@@ -33,6 +33,15 @@ export interface Alert {
   avatarUrl?: string | null
 }
 
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+export interface PaginationMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 export interface Transaction {
@@ -44,6 +53,49 @@ export interface Transaction {
   amount: number
 }
 
+export interface PaginatedTransactions {
+  data: Transaction[]
+  meta: PaginationMeta
+}
+
+export interface ListTransactionsParams {
+  page?: number
+  limit?: number
+  sort?: 'asc' | 'desc'
+  search?: string
+  status?: PaymentStatus
+  type?: PaymentType
+}
+
+// ─── Payments summary & detail ────────────────────────────────────────────────
+
+export interface PaymentsSummary {
+  monthlyCollected: number
+  monthlyTarget: number
+  recoveryRatePct: number
+  pendingCount: number
+  currency: 'XAF'
+  periodStart: string
+  periodEnd: string
+}
+
+export interface PaymentDetailDriver {
+  id: number
+  fullName: string
+  avatarUrl: string | null
+  phoneNumber: string
+}
+
+export interface PaymentDetail {
+  id: number
+  driverId: number
+  driver: PaymentDetailDriver
+  amount: number
+  type: PaymentType
+  status: PaymentStatus
+  createdAt: string
+}
+
 // ─── Payment creation ─────────────────────────────────────────────────────────
 
 export interface CreatePaymentBody {
@@ -52,14 +104,8 @@ export interface CreatePaymentBody {
   type: PaymentType
 }
 
-export interface Payment {
-  id: number
-  driverId: number
-  amount: number
-  type: PaymentType
-  status: PaymentStatus
-  createdAt: string
-}
+/** @deprecated use PaymentDetail */
+export type Payment = PaymentDetail
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
 

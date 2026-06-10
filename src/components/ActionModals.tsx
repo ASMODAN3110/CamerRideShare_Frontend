@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Button } from './ui/button'
 import { listDriversFromApi, userSelectErrorMessage } from '../services/usersService'
 import { listAllMotos } from '../services/fleetService'
-import { createPayment } from '../services/transactionsService'
+import { createPayment } from '../services/paymentsService'
 import { createIncident } from '../services/incidentsService'
 import { inviteInvestor } from '../services/invitationsService'
 import { ApiError } from '../types/auth'
