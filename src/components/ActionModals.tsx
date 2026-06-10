@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from './ui/button'
-import { listDrivers } from '../services/usersService'
-import { listMotos } from '../services/fleetService'
+import { listDriversFromApi, userSelectErrorMessage } from '../services/usersService'
+import { listAllMotos } from '../services/fleetService'
 import { createPayment } from '../services/transactionsService'
 import { createIncident } from '../services/incidentsService'
 import { inviteInvestor } from '../services/invitationsService'
-import type { Driver, Moto } from '../types/api'
+import { ApiError } from '../types/auth'
+import type { Driver, MotoListItem } from '../types/api'
 
 // ─── Modal wrapper ──────────────────────────────────────────────────────────
 
@@ -92,9 +93,9 @@ export function PaymentModal({ isOpen, onClose, onSuccess }: PaymentModalProps) 
     setError(null)
     setSubmitting(false)
     setLoadingDrivers(true)
-    listDrivers()
+    listDriversFromApi()
       .then(setDrivers)
-      .catch((err) => setError(err.message ?? 'Erreur chargement chauffeurs'))
+      .catch((err) => setError(userSelectErrorMessage(err)))
       .finally(() => setLoadingDrivers(false))
   }, [isOpen])
 
@@ -228,7 +229,7 @@ interface IncidentModalProps {
 
 export function IncidentModal({ isOpen, onClose, onSuccess }: IncidentModalProps) {
   const [drivers, setDrivers] = useState<Driver[]>([])
-  const [motos, setMotos] = useState<Moto[]>([])
+  const [motos, setMotos] = useState<MotoListItem[]>([])
   const [loadingDrivers, setLoadingDrivers] = useState(false)
   const [loadingMotos, setLoadingMotos] = useState(false)
   const [driverId, setDriverId] = useState(0)
@@ -238,7 +239,18 @@ export function IncidentModal({ isOpen, onClose, onSuccess }: IncidentModalProps
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const PRESET_TYPES = ['Accident', 'Vol', 'Panne', 'Agression', 'Perte']
+  const PRESET_TYPES = ['ACCIDENT', 'THEFT_ATTEMPT', 'Vol', 'Panne', 'Agression', 'Perte']
+
+  const motosForDriver = useMemo(
+    () => motos.filter((m) => !driverId || m.driver?.id === driverId),
+    [motos, driverId],
+  )
+
+  useEffect(() => {
+    if (motoId > 0 && !motosForDriver.some((m) => m.id === motoId)) {
+      setMotoId(0)
+    }
+  }, [driverId, motoId, motosForDriver])
 
   useEffect(() => {
     if (!isOpen) return
@@ -251,11 +263,11 @@ export function IncidentModal({ isOpen, onClose, onSuccess }: IncidentModalProps
 
     setLoadingDrivers(true)
     setLoadingMotos(true)
-    listDrivers()
+    listDriversFromApi()
       .then(setDrivers)
-      .catch((err) => setError(err.message ?? 'Erreur chargement chauffeurs'))
+      .catch((err) => setError(userSelectErrorMessage(err)))
       .finally(() => setLoadingDrivers(false))
-    listMotos()
+    listAllMotos()
       .then(setMotos)
       .catch(() => {
         /* motos are optional */
@@ -322,25 +334,27 @@ export function IncidentModal({ isOpen, onClose, onSuccess }: IncidentModalProps
         </div>
 
         {/* Moto (optionnel) */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Moto concernée <span className="text-slate-400">(optionnel)</span>
-          </label>
-          <select
-            value={motoId}
-            onChange={(e) => setMotoId(Number(e.target.value))}
-            className={inputCls()}
-          >
-            <option value={0}>
-              {loadingMotos ? 'Chargement…' : 'Aucune moto sélectionnée'}
-            </option>
-            {motos.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.model} — {m.city}
+        {motosForDriver.length > 0 ? (
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Moto concernée <span className="text-slate-400">(optionnel)</span>
+            </label>
+            <select
+              value={motoId}
+              onChange={(e) => setMotoId(Number(e.target.value))}
+              className={inputCls()}
+            >
+              <option value={0}>
+                {loadingMotos ? 'Chargement…' : 'Aucune moto sélectionnée'}
               </option>
-            ))}
-          </select>
-        </div>
+              {motosForDriver.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.matricule} — {m.model} — {m.city}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {/* Type d'incident */}
         <div className="space-y-1.5">
@@ -442,7 +456,12 @@ export function InvitationModal({ isOpen, onClose, onSuccess }: InvitationModalP
       onSuccess()
       onClose()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erreur lors de l'envoi de l'invitation"
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Erreur lors de l'envoi de l'invitation"
       setError(msg)
     } finally {
       setSubmitting(false)

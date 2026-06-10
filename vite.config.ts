@@ -29,34 +29,14 @@ export default defineConfig({
       clientPort: 8081,
     },
     proxy: {
-      '/auth': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      '/users': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      '/admin': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      '/transactions': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      '/payments': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      '/incidents': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
-      '/invitations': {
-        target: API_PROXY_TARGET,
-        changeOrigin: true,
-      },
+      '/auth': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/users': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/admin': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/transactions': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/payments': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/incidents': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/invitations': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/motos': { target: API_PROXY_TARGET, changeOrigin: true },
     },
   },
 })

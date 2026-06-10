@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
   CircleDot,
   CreditCard,
-  DollarSign,
   Gauge,
   MapPin,
+  DollarSign,
+  TrendingDown,
   TrendingUp,
   Users,
 } from 'lucide-react'
@@ -16,17 +17,29 @@ import {
   Cell,
   Label,
   Legend,
-  Line,
-  LineChart as RechartsLineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  LineChart as RechartsLineChart,
+  Line,
 } from 'recharts'
 import Sidebar from '../components/Sidebar'
 import { ParticleHover, SpotlightSection } from '../components/MagicBento'
+import { PaymentModal, IncidentModal, InvitationModal } from '../components/ActionModals'
+import { useAdminDashboard } from '../hooks/useAdminDashboard'
+import {
+  deltaPctTone,
+  formatDeltaPct,
+  formatPeriod,
+  formatShortDate,
+  formatXaf,
+  formatXafLabel,
+  initials,
+} from '../lib/format'
+import type { Alert, DashboardOverview, Transaction } from '../types/api'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -34,66 +47,32 @@ import { Progress } from '../components/ui/progress'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 
-// ─── API services & types ────────────────────────────────────────────────────
-
-import { getAlerts, getDashboardOverview } from '../services/dashboardService'
-import { listTransactions } from '../services/transactionsService'
-import type { Alert, DashboardOverview, Transaction } from '../types/api'
-import { PaymentModal, IncidentModal, InvitationModal } from '../components/ActionModals'
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatCompactXAF(amount: number): string {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M XAF`
-  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K XAF`
-  return `${amount} XAF`
-}
-
-function formatXAF(amount: number): string {
-  return `${amount.toLocaleString('fr-FR')} XAF`
-}
-
-function formatDeltaPct(pct: number): string {
-  return pct >= 0 ? `+${pct}%` : `${pct}%`
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  const day = d.getDate()
-  const month = d.toLocaleDateString('en-GB', { month: 'short' })
-  const year = d.getFullYear()
-  const hh = d.getHours().toString().padStart(2, '0')
-  const mm = d.getMinutes().toString().padStart(2, '0')
-  return `${day} ${month}, ${year} - ${hh}:${mm}`
-}
-
-function formatPeriodDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  const day = d.getDate()
-  const month = d.toLocaleDateString('en-GB', { month: 'short' })
-  return `${day} ${month}`
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length === 0) return '??'
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
-}
-
 type Role = 'patron' | 'investisseur' | 'conducteur'
 
-// ─── TopStatCard ─────────────────────────────────────────────────────────────
+function TopStatCard(props: {
+  title: string
+  value: string
+  delta: string
+  deltaTone: 'positive' | 'negative' | 'neutral'
+  Icon: LucideIcon
+}) {
+  const tone = props.deltaTone
+  const deltaCls =
+    tone === 'positive'
+      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
+      : tone === 'negative'
+        ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200'
+        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+  const DeltaIcon = tone === 'negative' ? TrendingDown : TrendingUp
 
-function TopStatCard(props: { title: string; value: string; delta: string; Icon: LucideIcon }) {
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/40">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-xs font-medium text-slate-500">{props.title}</div>
           <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">{props.value}</div>
-          <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-            <TrendingUp className="mr-1 h-3 w-3" />
+          <div className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${deltaCls}`}>
+            <DeltaIcon className="mr-1 h-3 w-3" />
             {props.delta}
           </div>
         </div>
@@ -104,8 +83,6 @@ function TopStatCard(props: { title: string; value: string; delta: string; Icon:
     </div>
   )
 }
-
-// ─── Tabs ────────────────────────────────────────────────────────────────────
 
 function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
   const tabs: Array<{ id: Role; label: string; icon: LucideIcon }> = [
@@ -140,14 +117,13 @@ function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
   )
 }
 
-// ─── EtatParcDonutCard ───────────────────────────────────────────────────────
-
-function EtatParcDonutCard(props: {
-  fleetStatus: DashboardOverview['fleetStatus']
-  total: number
-}) {
-  const { fleetStatus, total } = props
-  const parc = { actif: fleetStatus.active, vole: fleetStatus.stolen, panne: fleetStatus.broken }
+function EtatParcDonutCard(props: { fleetStatus: DashboardOverview['fleetStatus']; total: number }) {
+  const parc = {
+    actif: props.fleetStatus.active,
+    vole: props.fleetStatus.stolen,
+    panne: props.fleetStatus.broken,
+  }
+  const total = props.total || parc.actif + parc.vole + parc.panne
   const actifPct = total > 0 ? Math.round((parc.actif / total) * 100) : 0
 
   const data = useMemo(
@@ -217,13 +193,11 @@ function EtatParcDonutCard(props: {
   )
 }
 
-// ─── TresorerieCard ──────────────────────────────────────────────────────────
-
 function TresorerieCard(props: { treasury: DashboardOverview['treasuryWeekly'] }) {
-  const { treasury } = props
-  const progressPct = treasury.target > 0
-    ? Math.round((treasury.collected / treasury.target) * 100)
-    : 0
+  const pct =
+    props.treasury.target > 0
+      ? Math.round((props.treasury.collected / props.treasury.target) * 100)
+      : 0
 
   return (
     <Card>
@@ -232,26 +206,26 @@ function TresorerieCard(props: { treasury: DashboardOverview['treasuryWeekly'] }
           <div>
             <CardTitle className="text-base">Trésorerie Hebdomadaire</CardTitle>
             <div className="mt-1 text-sm font-medium text-slate-500">
-              {formatPeriodDate(treasury.periodStart)} - {formatPeriodDate(treasury.periodEnd)}
+              {formatPeriod(props.treasury.periodStart, props.treasury.periodEnd)}
             </div>
           </div>
           <div className="text-right">
             <div className="text-lg font-bold text-slate-900 dark:text-slate-50">
-              {formatCompactXAF(treasury.collected)} / {formatCompactXAF(treasury.target)}
+              {formatXaf(props.treasury.collected, true)} / {formatXaf(props.treasury.target, true)} XAF
             </div>
-            <div className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-300">
-              {progressPct}% Recouvré
-            </div>
+            <div className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-300">{pct}% Recouvré</div>
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
         <div className="space-y-3">
-          <Progress value={progressPct} className="h-4" aria-label="Progression trésorerie" />
+          <Progress value={pct} className="h-4" aria-label="Progress trésorerie" />
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
             <span>0 XAF</span>
-            <span className="text-slate-600 dark:text-slate-300">Objectif: {formatCompactXAF(treasury.target)}</span>
+            <span className="text-slate-600 dark:text-slate-300">
+              Objectif: {formatXafLabel(props.treasury.target, true)}
+            </span>
           </div>
         </div>
       </CardContent>
@@ -259,12 +233,7 @@ function TresorerieCard(props: { treasury: DashboardOverview['treasuryWeekly'] }
   )
 }
 
-// ─── AlertesCard ─────────────────────────────────────────────────────────────
-
 function AlertesCard(props: { alerts: Alert[] }) {
-  const { alerts } = props
-  const navigate = useNavigate()
-
   return (
     <Card>
       <CardHeader className="p-5 pb-3">
@@ -278,61 +247,47 @@ function AlertesCard(props: { alerts: Alert[] }) {
             </div>
           </div>
           <Badge variant="red" className="px-3 py-1 text-xs">
-            {alerts.length} Priorité{alerts.length > 1 ? 's' : ''} Haute{alerts.length > 1 ? 's' : ''}
+            {props.alerts.length} Priorité{props.alerts.length !== 1 ? 's' : ''} Haute{props.alerts.length !== 1 ? 's' : ''}
           </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
-        {alerts.length > 0 ? (
+        {props.alerts.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-500">Aucune alerte pour le moment.</p>
+        ) : (
           <div className="divide-y divide-slate-200/60">
-            {alerts.map((a) => (
+            {props.alerts.map((a) => (
               <div key={`${a.type}-${a.id}`} className="flex items-center justify-between gap-4 py-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  {a.avatarUrl ? (
-                    <Avatar className="h-10 w-10">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    {a.avatarUrl ? (
                       <AvatarImage src={a.avatarUrl} alt={a.driverName} className="h-full w-full rounded-full object-cover" />
-                    </Avatar>
-                  ) : (
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>{getInitials(a.driverName)}</AvatarFallback>
-                    </Avatar>
-                  )}
+                    ) : null}
+                    <AvatarFallback>{initials(a.driverName)}</AvatarFallback>
+                  </Avatar>
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{a.driverName}</div>
                     <div className="truncate text-xs text-slate-500 dark:text-slate-400">{a.location}</div>
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
+                <div className="shrink-0 text-right">
                   <div className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
                     {a.label}
                   </div>
                   <div className="mt-1 text-xs font-semibold">
                     {a.type === 'INCIDENT' ? (
-                      <Button
-                        type="button"
-                        className="text-blue-600 hover:underline dark:text-blue-300"
-                        onClick={() => navigate('/parc')}
-                      >
+                      <Button type="button" className="text-blue-600 hover:underline dark:text-blue-300">
                         Voir détails
                       </Button>
                     ) : a.amount !== undefined ? (
-                      <span
-                        className="text-red-600 dark:text-red-300 cursor-pointer hover:underline"
-                        onClick={() => navigate('/paiements')}
-                      >
-                        {formatXAF(a.amount)}
-                      </span>
+                      <span className="text-red-600 dark:text-red-300">{formatXafLabel(a.amount)}</span>
                     ) : null}
                   </div>
                 </div>
               </div>
             ))}
-          </div>
-        ) : (
-          <div className="py-8 text-center text-sm text-slate-400">
-            Aucune alerte pour le moment
           </div>
         )}
       </CardContent>
@@ -340,7 +295,29 @@ function AlertesCard(props: { alerts: Alert[] }) {
   )
 }
 
-// ─── GrandPatronDashboard ────────────────────────────────────────────────────
+function TransactionStatusBadge(props: { tx: Transaction }) {
+  if (props.tx.type === 'EXPENSE') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-800/60 dark:text-slate-200">
+        Dépense
+      </span>
+    )
+  }
+  if (props.tx.status === 'VERIFIED') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
+        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
+        Vérifié
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
+      <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-500" />
+      En attente
+    </span>
+  )
+}
 
 function GrandPatronDashboard(props: {
   overview: DashboardOverview
@@ -349,29 +326,26 @@ function GrandPatronDashboard(props: {
   onOpenPayment: () => void
   onOpenIncident: () => void
   onOpenInvitation: () => void
+  onViewAllPayments: () => void
 }) {
-  const navigate = useNavigate()
-  const { overview, alerts, transactions, onOpenPayment, onOpenIncident, onOpenInvitation } = props
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="flex flex-col">
-          <EtatParcDonutCard fleetStatus={overview.fleetStatus} total={overview.fleet.total} />
+          <EtatParcDonutCard fleetStatus={props.overview.fleetStatus} total={props.overview.fleet.total} />
         </div>
         <div className="flex flex-col gap-4">
-          <TresorerieCard treasury={overview.treasuryWeekly} />
-          <AlertesCard alerts={alerts} />
+          <TresorerieCard treasury={props.overview.treasuryWeekly} />
+          <AlertesCard alerts={props.alerts} />
         </div>
       </div>
 
-      {/* Actions rapides */}
       <div className="pt-1">
         <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Actions Rapides</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Button
             type="button"
-                        onClick={onOpenPayment}
+            onClick={props.onOpenPayment}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
           >
             <CreditCard className="h-4 w-4" />
@@ -379,7 +353,7 @@ function GrandPatronDashboard(props: {
           </Button>
           <Button
             type="button"
-                        onClick={onOpenIncident}
+            onClick={props.onOpenIncident}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
           >
             <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -387,7 +361,7 @@ function GrandPatronDashboard(props: {
           </Button>
           <Button
             type="button"
-                        onClick={onOpenInvitation}
+            onClick={props.onOpenInvitation}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
           >
             <Users className="h-4 w-4 text-emerald-600" />
@@ -396,93 +370,79 @@ function GrandPatronDashboard(props: {
         </div>
       </div>
 
-      {/* Transactions récentes */}
       <Card className="rounded-2xl">
         <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-3">
           <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">Transactions Récentes</div>
-          <Button type="button" onClick={() => navigate('/paiements')} className="text-xs font-semibold text-blue-600 hover:underline">
+          <Button
+            type="button"
+            onClick={props.onViewAllPayments}
+            className="text-xs font-semibold text-blue-600 hover:underline"
+          >
             Tout afficher
           </Button>
         </div>
 
         <div className="overflow-hidden rounded-2xl border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40">
-          <Table className="min-w-full text-xs">
-            <TableHeader className="bg-white dark:bg-slate-900/40">
-              <TableRow className="text-left text-slate-500 dark:text-slate-400">
-                <TableHead className="px-5 py-3 font-semibold">CHAUFFEUR</TableHead>
-                <TableHead className="px-5 py-3 font-semibold">DATE</TableHead>
-                <TableHead className="px-5 py-3 font-semibold">STATUT</TableHead>
-                <TableHead className="px-5 py-3 font-semibold text-right">MONTANT</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.length > 0 ? (
-                transactions.map((tx) => (
-                  <TableRow key={tx.id} className="border-t border-slate-200 dark:border-slate-800">
-                    <TableCell className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          {tx.driver.avatarUrl ? (
-                            <AvatarImage
-                              src={tx.driver.avatarUrl}
-                              alt={tx.driver.fullName}
-                              className="h-8 w-8 object-cover"
-                            />
-                          ) : (
-                            <AvatarFallback>{getInitials(tx.driver.fullName)}</AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
-                            {tx.driver.fullName}
+          {props.transactions.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">Aucune transaction récente.</p>
+          ) : (
+            <Table className="min-w-full text-xs">
+              <TableHeader className="bg-white dark:bg-slate-900/40">
+                <TableRow className="text-left text-slate-500 dark:text-slate-400">
+                  <TableHead className="px-5 py-3 font-semibold">CHAUFFEUR</TableHead>
+                  <TableHead className="px-5 py-3 font-semibold">DATE</TableHead>
+                  <TableHead className="px-5 py-3 font-semibold">STATUT</TableHead>
+                  <TableHead className="px-5 py-3 text-right font-semibold">MONTANT</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {props.transactions.map((tx) => {
+                  const isExpense = tx.type === 'EXPENSE'
+                  const sign = isExpense ? '-' : '+'
+                  const amountCls = isExpense
+                    ? 'text-red-600 dark:text-red-300'
+                    : 'text-emerald-600 dark:text-emerald-300'
+                  return (
+                    <TableRow key={tx.id} className="border-t border-slate-200 dark:border-slate-800">
+                      <TableCell className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            {tx.driver.avatarUrl ? (
+                              <AvatarImage
+                                src={tx.driver.avatarUrl}
+                                alt={tx.driver.fullName}
+                                className="h-8 w-8 object-cover"
+                              />
+                            ) : null}
+                            <AvatarFallback>{initials(tx.driver.fullName)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                              {tx.driver.fullName}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">
-                      {formatDate(tx.createdAt)}
-                    </TableCell>
-                    <TableCell className="px-5 py-3">
-                      {tx.status === 'VERIFIED' ? (
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-                          <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                          Vérifié
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
-                          <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-500" />
-                          En attente
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className={`px-5 py-3 text-right font-semibold ${
-                        tx.type === 'EXPENSE'
-                          ? 'text-red-600 dark:text-red-300'
-                          : 'text-emerald-600 dark:text-emerald-300'
-                      }`}
-                    >
-                      {tx.type === 'EXPENSE' ? '- ' : '+ '}
-                      {formatXAF(tx.amount)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-12 text-center text-sm text-slate-400">
-                    Aucune transaction récente
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">
+                        {formatShortDate(tx.createdAt)}
+                      </TableCell>
+                      <TableCell className="px-5 py-3">
+                        <TransactionStatusBadge tx={tx} />
+                      </TableCell>
+                      <TableCell className={`px-5 py-3 text-right font-semibold ${amountCls}`}>
+                        {sign} {formatXaf(tx.amount)} XAF
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </Card>
     </div>
   )
 }
-
-// ─── InvestorDashboard (hidden — gardé pour usage futur) ─────────────────────
 
 function InvestorDashboard() {
   const kpi = { invested: '12.5M XAF', recovered: '10.5M XAF', pct: 83 }
@@ -561,8 +521,6 @@ function InvestorDashboard() {
     </div>
   )
 }
-
-// ─── ConducteurDashboard (hidden — gardé pour usage futur) ───────────────────
 
 function ConducteurDashboard() {
   const ownershipPct = 64
@@ -654,56 +612,15 @@ function ConducteurDashboard() {
   )
 }
 
-// ─── DashboardPage ───────────────────────────────────────────────────────────
-
 export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggleTheme: () => void }) {
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [role, setRole] = useState<Role>('patron')
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [incidentOpen, setIncidentOpen] = useState(false)
+  const [invitationOpen, setInvitationOpen] = useState(false)
 
-  // ── Données API ──
-  const [overview, setOverview] = useState<DashboardOverview | null>(null)
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // ── Modales ──
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [showIncidentModal, setShowIncidentModal] = useState(false)
-  const [showInvitationModal, setShowInvitationModal] = useState(false)
-
-  const refreshDashboard = useCallback(async () => {
-    const [overviewData, alertsData, txsData] = await Promise.all([
-      getDashboardOverview(),
-      getAlerts('high'),
-      listTransactions({ limit: 5, sort: 'desc' }),
-    ])
-    setOverview(overviewData)
-    setAlerts(alertsData)
-    setTransactions(txsData)
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadDashboard() {
-      try {
-        setLoading(true)
-        setError(null)
-        await refreshDashboard()
-      } catch (err) {
-        if (cancelled) return
-        const message =
-          err instanceof Error ? err.message : 'Erreur lors du chargement du tableau de bord'
-        setError(message)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    loadDashboard()
-    return () => { cancelled = true }
-  }, [refreshDashboard])
+  const { overview, alerts, transactions, loading, error, refresh } = useAdminDashboard()
 
   const todayLabel = (() => {
     const d = new Date()
@@ -716,15 +633,9 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
   return (
     <SpotlightSection>
       <div className="flex">
-        <Sidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          theme={props.theme}
-          onToggleTheme={props.onToggleTheme}
-        />
+        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={props.theme} onToggleTheme={props.onToggleTheme} />
 
         <main className="flex-1 p-6">
-          {/* Hidden tabs: only Grand Patron workspace */}
           <div className="hidden">
             <Tabs role={role} onChange={setRole} />
           </div>
@@ -732,7 +643,9 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Aperçu du Tableau de Bord</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Bon retour, Grand Patron. Voici l&apos;activité d&apos;aujourd&apos;hui.</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Bon retour, Grand Patron. Voici l&apos;activité d&apos;aujourd&apos;hui.
+              </p>
             </div>
 
             <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
@@ -740,40 +653,28 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
             </div>
           </div>
 
-          {/* ── État de chargement ── */}
-          {loading && (
-            <div className="mb-6 flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="flex flex-col items-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-                <p className="text-sm text-slate-500">Chargement du tableau de bord…</p>
-              </div>
-            </div>
-          )}
-
-          {/* ── Erreur ── */}
-          {!loading && error && (
-            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 dark:border-red-900/50 dark:bg-red-950/40">
+          {error ? (
+            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 dark:border-red-900/50 dark:bg-red-950/40">
               <p className="text-sm font-semibold text-red-700 dark:text-red-200">{error}</p>
-              <Button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="mt-2 text-xs font-semibold text-red-600 underline hover:text-red-500 dark:text-red-300"
-              >
+              <Button type="button" onClick={() => void refresh()} className="mt-3 text-sm font-semibold text-blue-600 hover:underline">
                 Réessayer
               </Button>
             </div>
-          )}
+          ) : null}
 
-          {/* ── Contenu ── */}
-          {!loading && !error && overview && (
+          {loading && !overview ? (
+            <div className="flex min-h-[320px] items-center justify-center">
+              <p className="text-sm font-medium text-slate-500">Chargement du tableau de bord…</p>
+            </div>
+          ) : overview ? (
             <>
-              {/* Top stat cards */}
               <div className="grid gap-4 md:grid-cols-3">
                 <ParticleHover className="rounded-2xl">
                   <TopStatCard
                     title="Parc Total"
                     value={String(overview.fleet.total)}
                     delta={formatDeltaPct(overview.fleet.deltaPct)}
+                    deltaTone={deltaPctTone(overview.fleet.deltaPct)}
                     Icon={MapPin}
                   />
                 </ParticleHover>
@@ -782,14 +683,16 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
                     title="Investisseurs Actifs"
                     value={String(overview.activeInvestors.count)}
                     delta={formatDeltaPct(overview.activeInvestors.deltaPct)}
+                    deltaTone={deltaPctTone(overview.activeInvestors.deltaPct)}
                     Icon={Users}
                   />
                 </ParticleHover>
                 <ParticleHover className="rounded-2xl">
                   <TopStatCard
                     title="Revenu Mensuel"
-                    value={formatCompactXAF(overview.monthlyRevenue.amount)}
+                    value={formatXafLabel(overview.monthlyRevenue.amount, true)}
                     delta={formatDeltaPct(overview.monthlyRevenue.deltaPct)}
+                    deltaTone={deltaPctTone(overview.monthlyRevenue.deltaPct)}
                     Icon={DollarSign}
                   />
                 </ParticleHover>
@@ -800,9 +703,10 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
                   overview={overview}
                   alerts={alerts}
                   transactions={transactions}
-                  onOpenPayment={() => setShowPaymentModal(true)}
-                  onOpenIncident={() => setShowIncidentModal(true)}
-                  onOpenInvitation={() => setShowInvitationModal(true)}
+                  onOpenPayment={() => setPaymentOpen(true)}
+                  onOpenIncident={() => setIncidentOpen(true)}
+                  onOpenInvitation={() => setInvitationOpen(true)}
+                  onViewAllPayments={() => navigate('/paiements')}
                 />
                 <div className="hidden">
                   <InvestorDashboard />
@@ -810,29 +714,14 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
                 </div>
               </div>
             </>
-          )}
+          ) : null}
         </main>
       </div>
 
-      {overview && (
-        <>
-          <PaymentModal
-            isOpen={showPaymentModal}
-            onClose={() => setShowPaymentModal(false)}
-            onSuccess={refreshDashboard}
-          />
-          <IncidentModal
-            isOpen={showIncidentModal}
-            onClose={() => setShowIncidentModal(false)}
-            onSuccess={refreshDashboard}
-          />
-          <InvitationModal
-            isOpen={showInvitationModal}
-            onClose={() => setShowInvitationModal(false)}
-            onSuccess={refreshDashboard}
-          />
-        </>
-      )}
+      <PaymentModal isOpen={paymentOpen} onClose={() => setPaymentOpen(false)} onSuccess={() => void refresh()} />
+      <IncidentModal isOpen={incidentOpen} onClose={() => setIncidentOpen(false)} onSuccess={() => void refresh()} />
+      <InvitationModal isOpen={invitationOpen} onClose={() => setInvitationOpen(false)} onSuccess={() => void refresh()} />
     </SpotlightSection>
   )
 }
+

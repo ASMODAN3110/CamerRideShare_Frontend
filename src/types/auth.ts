@@ -6,6 +6,7 @@ export type User = {
   fullName: string
   role: UserRole
   phoneNumber: string
+  avatarUrl?: string | null
   createdAt: string
   updatedAt: string
 }

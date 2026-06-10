@@ -5,7 +5,6 @@ import {
   Bike,
   CheckCircle2,
   ChevronRight,
-  Filter,
   MapPin,
   Plus,
   Search,
@@ -13,80 +12,16 @@ import {
 } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { ParticleHover, SpotlightSection } from '../components/MagicBento'
+import { CreateMotoModal, MotoDetailModal } from '../components/FleetModals'
 import { Button } from '../components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent } from '../components/ui/card'
 import { Progress } from '../components/ui/progress'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type MotoStatus = 'actif' | 'panne' | 'indisponible'
-
-type Moto = {
-  id: string
-  matricule: string
-  chauffeur: string
-  zone: string
-  status: MotoStatus
-  progression: number
-  info: string
-  avatarUrl?: string
-  avatarFallback: string
-  imageUrl: string
-}
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const mockMotos: Moto[] = [
-  {
-    id: 'm1',
-    matricule: 'LT 1234 A',
-    chauffeur: 'Jean-Paul N.',
-    zone: 'Douala V',
-    status: 'actif',
-    progression: 79,
-    info: 'Dernier entretien: 17 Oct',
-    avatarUrl: 'https://i.pravatar.cc/100?img=3',
-    avatarFallback: 'JP',
-    imageUrl: 'https://i.pravatar.cc/400?img=50',
-  },
-  {
-    id: 'm2',
-    matricule: 'LT 8820 C',
-    chauffeur: 'Michel T.',
-    zone: 'Yaoundé I',
-    status: 'panne',
-    progression: 42,
-    info: 'Problème moteur signalé',
-    avatarUrl: 'https://i.pravatar.cc/100?img=5',
-    avatarFallback: 'MT',
-    imageUrl: 'https://i.pravatar.cc/400?img=51',
-  },
-  {
-    id: 'm3',
-    matricule: 'SW 4421 B',
-    chauffeur: 'Alain B.',
-    zone: 'Bafoussam Ouest',
-    status: 'indisponible',
-    progression: 90,
-    info: 'Suspendu (Incident)',
-    avatarFallback: 'AB',
-    imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80',
-  },
-  {
-    id: 'm4',
-    matricule: 'LT 0058 G',
-    chauffeur: 'Emmanuel K.',
-    zone: 'Douala V',
-    status: 'actif',
-    progression: 18,
-    info: 'Nouvelle moto (Semaine 3)',
-    avatarUrl: 'https://i.pravatar.cc/100?img=1',
-    avatarFallback: 'EK',
-    imageUrl: 'https://images.unsplash.com/photo-1449426468159-d96dbf08f19f?w=400&q=80',
-  },
-]
+import { useFleetParc } from '../hooks/useFleetParc'
+import { DEFAULT_MOTO_IMAGE, STATUS_UI } from '../lib/fleet'
+import { initials } from '../lib/format'
+import type { MotoListItem } from '../types/api'
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
@@ -111,42 +46,55 @@ function StatCard(props: {
   )
 }
 
-// ─── Status badge config ───────────────────────────────────────────────────────
+function StatCardSkeleton() {
+  return (
+    <div className="flex items-center gap-4 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
+      <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="h-3 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-7 w-12 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+      </div>
+    </div>
+  )
+}
 
-const statusConfig: Record<MotoStatus, { label: string; variant: 'green' | 'orange' | 'red' }> = {
-  actif: { label: 'Actif', variant: 'green' },
-  panne: { label: 'En panne', variant: 'orange' },
-  indisponible: { label: 'Indisponible', variant: 'red' },
+function MotoCardSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <div className="h-44 animate-pulse bg-slate-200 dark:bg-slate-700" />
+      <CardContent className="space-y-3 px-4 pb-4 pt-3">
+        <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-3 w-1/2 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-2 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+      </CardContent>
+    </Card>
+  )
 }
 
 // ─── MotoCard ─────────────────────────────────────────────────────────────────
 
-function MotoCard({ moto }: { moto: Moto }) {
-  const { label, variant } = statusConfig[moto.status]
+function MotoCard({ moto, onDetails }: { moto: MotoListItem; onDetails: (id: number) => void }) {
+  const { label, variant } = STATUS_UI[moto.status]
+  const driverName = moto.driver?.fullName ?? 'Non assigné'
+  const avatarFallback = moto.driver ? initials(moto.driver.fullName) : '?'
 
   return (
     <Card className="overflow-hidden">
-      {/* Image section */}
       <div className="relative h-44 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
         <img
-          src={moto.imageUrl}
+          src={moto.imageUrl ?? DEFAULT_MOTO_IMAGE}
           alt={`Moto ${moto.matricule}`}
           className="h-full w-full object-cover"
           onError={(e) => {
-            ;(e.target as HTMLImageElement).style.display = 'none'
+            ;(e.target as HTMLImageElement).src = DEFAULT_MOTO_IMAGE
           }}
         />
-        {/* Overlay gradient */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-
-        {/* Status badge — top right */}
         <div className="absolute right-3 top-3">
           <Badge variant={variant} className="shadow-sm">
             {label}
           </Badge>
         </div>
-
-        {/* Matricule badge — bottom left */}
         <div className="absolute bottom-3 left-3">
           <span className="inline-flex items-center rounded-full bg-slate-900/75 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm">
             # {moto.matricule}
@@ -154,40 +102,51 @@ function MotoCard({ moto }: { moto: Moto }) {
         </div>
       </div>
 
-      {/* Body */}
       <CardContent className="px-4 pb-4 pt-3">
-        {/* Chauffeur row */}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold text-slate-900 dark:text-slate-50">{moto.chauffeur}</div>
+            <div className="truncate text-sm font-bold text-slate-900 dark:text-slate-50">{driverName}</div>
             <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
               <MapPin className="h-3 w-3 shrink-0" />
-              <span className="truncate">{moto.zone}</span>
+              <span className="truncate">{moto.city}</span>
             </div>
           </div>
-          <Avatar className="h-9 w-9 shrink-0">
-            {moto.avatarUrl ? (
-              <AvatarImage src={moto.avatarUrl} alt={moto.chauffeur} className="h-full w-full object-cover" />
-            ) : (
-              <AvatarFallback>{moto.avatarFallback}</AvatarFallback>
-            )}
-          </Avatar>
+          {moto.driver ? (
+            <Avatar className="h-9 w-9 shrink-0">
+              {moto.driver.avatarUrl ? (
+                <AvatarImage
+                  src={moto.driver.avatarUrl}
+                  alt={moto.driver.fullName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <AvatarFallback>{avatarFallback}</AvatarFallback>
+              )}
+            </Avatar>
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-400 dark:bg-slate-800">
+              ?
+            </div>
+          )}
         </div>
 
-        {/* Progression */}
         <div className="mt-4 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Progression Propriété</span>
-            <span className="text-xs font-bold text-blue-600 dark:text-blue-300">{moto.progression}%</span>
+            <span className="text-xs font-bold text-blue-600 dark:text-blue-300">{moto.ownershipPct}%</span>
           </div>
-          <Progress value={moto.progression} className="h-2" aria-label={`Progression ${moto.chauffeur}`} />
+          <Progress value={moto.ownershipPct} className="h-2" aria-label={`Progression ${driverName}`} />
         </div>
 
-        {/* Footer */}
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800/60">
-          <span className="truncate text-xs text-slate-400 dark:text-slate-500">{moto.info}</span>
+          {moto.footerInfo ? (
+            <span className="truncate text-xs text-slate-400 dark:text-slate-500">{moto.footerInfo}</span>
+          ) : (
+            <span />
+          )}
           <Button
             type="button"
+            onClick={() => onDetails(moto.id)}
             className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
           >
             Détails
@@ -208,23 +167,37 @@ type ParcPageProps = {
 
 export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('tous')
-  const [filterZone, setFilterZone] = useState('toutes')
-  const [filterType, setFilterType] = useState('tous')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [detailMotoId, setDetailMotoId] = useState<number | null>(null)
 
-  // Filter motos based on search + status
-  const filteredMotos = mockMotos.filter((m) => {
-    const matchSearch =
-      search.trim() === '' ||
-      m.matricule.toLowerCase().includes(search.toLowerCase()) ||
-      m.chauffeur.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = filterStatus === 'tous' || m.status === filterStatus
-    return matchSearch && matchStatus
-  })
+  const {
+    summary,
+    filterOptions,
+    motos,
+    meta,
+    filters,
+    loading,
+    listLoading,
+    error,
+    refresh,
+    setPage,
+    setSearch,
+    setStatusFilter,
+    setCityFilter,
+    setModelFilter,
+  } = useFleetParc()
+
+  const handleMutationSuccess = () => {
+    void refresh()
+  }
+
+  const displayCount = motos.length
+  const totalCount = meta?.total ?? summary?.total ?? 0
+  const currentPage = meta?.page ?? filters.page
+  const totalPages = meta?.totalPages ?? 1
 
   return (
-      <SpotlightSection>
+    <SpotlightSection>
       <div className="flex">
         <Sidebar
           sidebarOpen={sidebarOpen}
@@ -234,7 +207,6 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
         />
 
         <main className="flex-1 p-6">
-          {/* ── Header ── */}
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Gestion du Parc</h1>
@@ -245,6 +217,7 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
             <Button
               glare
               type="button"
+              onClick={() => setCreateOpen(true)}
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
             >
               <Plus className="h-4 w-4" />
@@ -252,103 +225,131 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
             </Button>
           </div>
 
-          {/* ── Stat cards ── */}
+          {error ? (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-200">
+              <span>{error}</span>
+              <Button
+                type="button"
+                onClick={() => void refresh()}
+                className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-200"
+              >
+                Réessayer
+              </Button>
+            </div>
+          ) : null}
+
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <ParticleHover className="rounded-2xl"><StatCard
-              label="Total Motos"
-              value={124}
-              Icon={Bike}
-              iconBg="bg-blue-50 dark:bg-blue-950/40"
-              iconColor="text-blue-600 dark:text-blue-300"
-            /></ParticleHover>
-            <ParticleHover className="rounded-2xl"><StatCard
-              label="Disponibles"
-              value={105}
-              Icon={CheckCircle2}
-              iconBg="bg-emerald-50 dark:bg-emerald-950/40"
-              iconColor="text-emerald-600 dark:text-emerald-300"
-            /></ParticleHover>
-            <ParticleHover className="rounded-2xl"><StatCard
-              label="En Maintenance"
-              value={7}
-              Icon={Wrench}
-              iconBg="bg-orange-50 dark:bg-orange-950/40"
-              iconColor="text-orange-600 dark:text-orange-300"
-            /></ParticleHover>
-            <ParticleHover className="rounded-2xl"><StatCard
-              label="Incidents"
-              value={12}
-              Icon={AlertTriangle}
-              iconBg="bg-red-50 dark:bg-red-950/40"
-              iconColor="text-red-600 dark:text-red-300"
-            /></ParticleHover>
+            {loading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <ParticleHover className="rounded-2xl">
+                  <StatCard
+                    label="Total Motos"
+                    value={summary?.total ?? '—'}
+                    Icon={Bike}
+                    iconBg="bg-blue-50 dark:bg-blue-950/40"
+                    iconColor="text-blue-600 dark:text-blue-300"
+                  />
+                </ParticleHover>
+                <ParticleHover className="rounded-2xl">
+                  <StatCard
+                    label="Disponibles"
+                    value={summary?.available ?? '—'}
+                    Icon={CheckCircle2}
+                    iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+                    iconColor="text-emerald-600 dark:text-emerald-300"
+                  />
+                </ParticleHover>
+                <ParticleHover className="rounded-2xl">
+                  <StatCard
+                    label="En Maintenance"
+                    value={summary?.inMaintenance ?? '—'}
+                    Icon={Wrench}
+                    iconBg="bg-orange-50 dark:bg-orange-950/40"
+                    iconColor="text-orange-600 dark:text-orange-300"
+                  />
+                </ParticleHover>
+                <ParticleHover className="rounded-2xl">
+                  <StatCard
+                    label="Incidents"
+                    value={summary?.incidents ?? '—'}
+                    Icon={AlertTriangle}
+                    iconBg="bg-red-50 dark:bg-red-950/40"
+                    iconColor="text-red-600 dark:text-red-300"
+                  />
+                </ParticleHover>
+              </>
+            )}
           </div>
 
-          {/* ── Search & Filters ── */}
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            {/* Search input */}
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
-                value={search}
+                value={filters.search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher par matricule ou chauffeur..."
                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-50 dark:placeholder:text-slate-500"
               />
             </div>
 
-            {/* Status filter */}
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              value={filters.status}
+              onChange={(e) => setStatusFilter(e.target.value as '' | 'ACTIVE' | 'BROKEN' | 'STOLEN')}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200"
             >
-              <option value="tous">Statut: Tous</option>
-              <option value="actif">Actif</option>
-              <option value="panne">En panne</option>
-              <option value="indisponible">Indisponible</option>
+              <option value="">Statut: Tous</option>
+              <option value="ACTIVE">Actif</option>
+              <option value="BROKEN">En panne</option>
+              <option value="STOLEN">Indisponible</option>
             </select>
 
-            {/* Zone filter */}
             <select
-              value={filterZone}
-              onChange={(e) => setFilterZone(e.target.value)}
+              value={filters.city}
+              onChange={(e) => setCityFilter(e.target.value)}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200"
             >
-              <option value="toutes">Zone: Toutes</option>
-              <option value="douala">Douala</option>
-              <option value="yaounde">Yaoundé</option>
-              <option value="bafoussam">Bafoussam</option>
+              <option value="">Zone: Toutes</option>
+              {(filterOptions?.cities ?? []).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
 
-            {/* Type filter */}
             <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              value={filters.model}
+              onChange={(e) => setModelFilter(e.target.value)}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200"
             >
-              <option value="tous">Type: Tous</option>
-              <option value="125cc">125cc</option>
-              <option value="150cc">150cc</option>
-              <option value="200cc">200cc</option>
+              <option value="">Type: Tous</option>
+              {(filterOptions?.models ?? []).map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
             </select>
-
-            {/* Advanced filter button */}
-            <Button
-              type="button"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400 dark:hover:bg-slate-800"
-              aria-label="Filtres avancés"
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
 
-          {/* ── Moto Grid ── */}
-          {filteredMotos.length > 0 ? (
+          {loading || listLoading ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredMotos.map((moto) => (
-                <ParticleHover key={moto.id} className="rounded-2xl"><MotoCard moto={moto} /></ParticleHover>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <MotoCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : motos.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {motos.map((moto) => (
+                <ParticleHover key={moto.id} className="rounded-2xl">
+                  <MotoCard moto={moto} onDetails={setDetailMotoId} />
+                </ParticleHover>
               ))}
             </div>
           ) : (
@@ -359,23 +360,29 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
             </div>
           )}
 
-          {/* ── Pagination ── */}
           <div className="mt-8 flex items-center justify-between gap-4">
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Affichage de{' '}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">{filteredMotos.length}</span> sur{' '}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">124</span> motos
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{displayCount}</span> sur{' '}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{totalCount}</span> motos
             </p>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
+                disabled={currentPage <= 1 || listLoading}
+                onClick={() => setPage(currentPage - 1)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 Précédent
               </Button>
+              <span className="text-sm text-slate-500">
+                {currentPage} / {totalPages}
+              </span>
               <Button
                 type="button"
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
+                disabled={currentPage >= totalPages || listLoading}
+                onClick={() => setPage(currentPage + 1)}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 disabled:opacity-50"
               >
                 Suivant
               </Button>
@@ -383,6 +390,20 @@ export default function ParcPage({ theme, onToggleTheme }: ParcPageProps) {
           </div>
         </main>
       </div>
-      </SpotlightSection>
+
+      <CreateMotoModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={handleMutationSuccess}
+        filterOptions={filterOptions}
+      />
+
+      <MotoDetailModal
+        motoId={detailMotoId}
+        onClose={() => setDetailMotoId(null)}
+        onSuccess={handleMutationSuccess}
+        filterOptions={filterOptions}
+      />
+    </SpotlightSection>
   )
 }

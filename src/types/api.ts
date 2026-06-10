@@ -108,25 +108,139 @@ export interface Driver {
   createdAt: string
 }
 
-// ─── Motos (select pour formulaires) ─────────────────────────────────────────
+// ─── Fleet / Motos ────────────────────────────────────────────────────────────
 
-export interface Moto {
+export type MotoStatus = 'ACTIVE' | 'BROKEN' | 'STOLEN'
+
+export interface FleetSummary {
+  total: number
+  available: number
+  inMaintenance: number
+  incidents: number
+}
+
+export interface MotoDriver {
   id: number
+  fullName: string
+  avatarUrl: string | null
+  phoneNumber: string
+}
+
+export interface MotoInvestor {
+  id: number
+  fullName: string
+}
+
+export interface MotoListItem {
+  id: number
+  matricule: string
   model: string
   city: string
-  status: 'ACTIVE' | 'STOLEN' | 'BROKEN'
+  status: MotoStatus
+  imageUrl: string | null
   financedAmount: number
   targetAmount: number
+  ownershipPct: number
+  footerInfo: string | null
+  driver: MotoDriver | null
+  investor: MotoInvestor | null
+}
+
+export interface PaginatedMotos {
+  data: MotoListItem[]
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+export interface MotoFilters {
+  cities: string[]
+  models: string[]
+  statuses: MotoStatus[]
+}
+
+export interface MotoDetailIncident {
+  id: number
+  type: string
+  description: string
+  status: 'OPEN' | 'RESOLVED'
+  createdAt: string
+}
+
+export interface MotoDetailPayment {
+  id: number
+  amount: number
+  type: PaymentType
+  status: PaymentStatus
+  createdAt: string
+}
+
+export interface MotoDetail extends MotoListItem {
+  lastMaintenanceAt: string | null
+  openIncidents: MotoDetailIncident[]
+  recentPayments: MotoDetailPayment[]
+}
+
+export interface CreateMotoPayload {
+  matricule: string
+  model: string
+  city: string
+  targetAmount: number
+  driverId?: number
+  investorId?: number
+  imageUrl?: string
+}
+
+export interface UpdateMotoPayload extends Partial<Omit<CreateMotoPayload, 'driverId' | 'investorId'>> {
+  status?: MotoStatus
+  lastMaintenanceAt?: string | null
+  financedAmount?: number
+  driverId?: number | null
+  investorId?: number | null
+}
+
+export interface DeleteMotoResponse {
+  id: number
+  deletedAt: string
+}
+
+/** Raw Prisma shape from GET /motos/available */
+export interface MotoAvailable {
+  id: number
+  matricule: string
+  model: string
+  city: string
+  status: MotoStatus
+  financedAmount: number
+  targetAmount: number
+  imageUrl: string | null
+  lastMaintenanceAt: string | null
   driverId: number | null
   investorId: number | null
-  driver: {
-    id: number
-    fullName: string
-    phoneNumber: string
-  } | null
-  investor: {
-    id: number
-    fullName: string
-    phoneNumber: string
-  } | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ListMotosParams {
+  page?: number
+  limit?: number
+  search?: string
+  status?: MotoStatus
+  city?: string
+  model?: string
+}
+
+// ─── Investors (select pour formulaires) ─────────────────────────────────────
+
+export interface Investor {
+  id: number
+  email: string
+  fullName: string
+  role: 'INVESTOR'
+  phoneNumber: string
+  avatarUrl: string | null
+  createdAt: string
 }
