@@ -279,6 +279,62 @@ export interface ListMotosParams {
   model?: string
 }
 
+// ─── Admin investors page ─────────────────────────────────────────────────────
+
+export type AdminInvestorStatus = 'ACTIVE' | 'LATE' | 'INACTIVE'
+
+export interface TopContributor {
+  id: number
+  fullName: string
+  avatarUrl: string | null
+  recoveryRatePct: number
+}
+
+export interface InvestorsSummary {
+  totalCapitalInvested: number
+  activeInvestorsCount: number
+  totalInvestorsCount: number
+  financedMotosCount: number
+  currency: 'XAF'
+  topContributors: TopContributor[]
+}
+
+export interface AdminInvestorListItem {
+  id: number
+  fullName: string
+  avatarUrl: string | null
+  zone: string | null
+  amountInvested: number
+  amountRecovered: number
+  recoveryRatePct: number
+  motosCount: number
+  status: AdminInvestorStatus
+  joinedAt: string
+}
+
+export interface PaginatedAdminInvestors {
+  data: AdminInvestorListItem[]
+  meta: PaginationMeta
+}
+
+export interface ListAdminInvestorsParams {
+  page?: number
+  limit?: number
+  sort?: 'asc' | 'desc'
+  search?: string
+  status?: AdminInvestorStatus
+}
+
+export interface RoiTrendPoint {
+  period: string
+  label: string
+  avgRoiPct: number
+}
+
+export interface InvestorsRoiTrend {
+  points: RoiTrendPoint[]
+}
+
 // ─── Investors (select pour formulaires) ─────────────────────────────────────
 
 export interface Investor {
