@@ -534,7 +534,7 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
             </div>
           </div>
 
-          {moto.openIncidents.length > 0 ? (
+          {(moto.openIncidents?.length ?? 0) > 0 ? (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Incidents ouverts</h3>
               <ul className="space-y-2">
@@ -552,7 +552,7 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
             </div>
           ) : null}
 
-          {moto.recentPayments.length > 0 ? (
+          {(moto.recentPayments?.length ?? 0) > 0 ? (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                 Paiements récents (chauffeur)

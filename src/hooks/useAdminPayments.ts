@@ -67,7 +67,7 @@ export function useAdminPayments() {
     setListLoading(true)
     try {
       const result = await listTransactions(toListParams(active))
-      setTransactions(result.data)
+      setTransactions(result.data ?? [])
       setMeta(result.meta)
     } finally {
       setListLoading(false)
@@ -84,7 +84,7 @@ export function useAdminPayments() {
         listTransactions(toListParams(active)),
       ])
       setSummary(nextSummary)
-      setTransactions(result.data)
+      setTransactions(result.data ?? [])
       setMeta(result.meta)
     } catch (err) {
       setError(toErrorMessage(err))

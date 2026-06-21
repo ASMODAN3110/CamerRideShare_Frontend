@@ -247,13 +247,13 @@ function AlertesCard(props: { alerts: Alert[] }) {
             </div>
           </div>
           <Badge variant="red" className="px-3 py-1 text-xs">
-            {props.alerts.length} Priorité{props.alerts.length !== 1 ? 's' : ''} Haute{props.alerts.length !== 1 ? 's' : ''}
+            {props.alerts?.length ?? 0} Priorité{(props.alerts?.length ?? 0) !== 1 ? 's' : ''} Haute{(props.alerts?.length ?? 0) !== 1 ? 's' : ''}
           </Badge>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
-        {props.alerts.length === 0 ? (
+        {props.alerts?.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-500">Aucune alerte pour le moment.</p>
         ) : (
           <div className="divide-y divide-slate-200/60">
@@ -383,7 +383,7 @@ function GrandPatronDashboard(props: {
         </div>
 
         <div className="overflow-hidden rounded-2xl border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40">
-          {props.transactions.length === 0 ? (
+          {props.transactions?.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-slate-500">Aucune transaction récente.</p>
           ) : (
             <Table className="min-w-full text-xs">

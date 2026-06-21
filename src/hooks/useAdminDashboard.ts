@@ -28,7 +28,7 @@ export function useAdminDashboard() {
       ])
       setOverview(nextOverview)
       setAlerts(nextAlerts)
-      setTransactions(nextTransactions.data)
+      setTransactions(nextTransactions.data ?? [])
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {

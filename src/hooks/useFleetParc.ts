@@ -69,7 +69,7 @@ export function useFleetParc() {
     setListLoading(true)
     try {
       const result = await listMotos(toListParams(active))
-      setMotos(result.data)
+      setMotos(result.data ?? [])
       setMeta(result.meta)
     } finally {
       setListLoading(false)
@@ -88,7 +88,7 @@ export function useFleetParc() {
       ])
       setSummary(nextSummary)
       setFilterOptions(nextFilters)
-      setMotos(result.data)
+      setMotos(result.data ?? [])
       setMeta(result.meta)
     } catch (err) {
       setError(toErrorMessage(err))

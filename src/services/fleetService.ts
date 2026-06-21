@@ -66,10 +66,10 @@ export function listAvailableMotos(): Promise<MotoAvailable[]> {
 export async function listAllMotos(): Promise<MotoListItem[]> {
   const limit = 50
   const first = await listMotos({ page: 1, limit })
-  const all = [...first.data]
+  const all = [...(first.data ?? [])]
   for (let page = 2; page <= first.meta.totalPages; page++) {
     const next = await listMotos({ page, limit })
-    all.push(...next.data)
+    all.push(...(next.data ?? []))
   }
   return all
 }

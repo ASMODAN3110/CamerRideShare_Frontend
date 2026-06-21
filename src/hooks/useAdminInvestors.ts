@@ -64,7 +64,7 @@ export function useAdminInvestors() {
     setListLoading(true)
     try {
       const result = await listAdminInvestors(toListParams(active))
-      setInvestors(result.data)
+      setInvestors(result.data ?? [])
       setMeta(result.meta)
     } finally {
       setListLoading(false)
@@ -82,7 +82,7 @@ export function useAdminInvestors() {
         getInvestorsRoiTrend(ROI_MONTHS),
       ])
       setSummary(nextSummary)
-      setInvestors(result.data)
+      setInvestors(result.data ?? [])
       setMeta(result.meta)
       setRoiTrend(nextRoi)
     } catch (err) {
