@@ -346,3 +346,29 @@ export interface Investor {
   avatarUrl: string | null
   createdAt: string
 }
+
+// ─── Driver dashboard ─────────────────────────────────────────────────────
+
+export interface DriverProgress {
+  proprietePct: number
+  resteAPayer: number
+  prochainPaiementJours: number
+  estAJour: boolean
+}
+
+export interface DriverPayment {
+  id: string
+  libelle: string
+  date: string
+  montant: number
+  paye: boolean
+}
+
+export interface CreateReportBody {
+  description: string
+}
+
+export interface ReportResponse {
+  id: number
+  status: 'OPEN'
+}

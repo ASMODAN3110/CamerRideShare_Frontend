@@ -37,6 +37,7 @@ export default defineConfig({
       '/incidents': { target: API_PROXY_TARGET, changeOrigin: true },
       '/invitations': { target: API_PROXY_TARGET, changeOrigin: true },
       '/motos': { target: API_PROXY_TARGET, changeOrigin: true },
+      '/driver': { target: API_PROXY_TARGET, changeOrigin: true },
     },
   },
 })

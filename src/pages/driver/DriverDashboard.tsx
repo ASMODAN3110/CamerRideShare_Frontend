@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle, CreditCard, Flag, Wallet } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CheckCircle, Flag, Loader2, Trash2, Wallet } from 'lucide-react'
 
 import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
@@ -7,68 +7,20 @@ import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Payment = {
-  id: string
-  libelle: string
-  date: Date
-  montant: number
-  paye: boolean
-}
-
-type DriverProgress = {
-  proprietePct: number
-  resteAPayer: number
-  prochainPaiementJours: number
-  estAJour: boolean
-}
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const mockProgress: DriverProgress = {
-  proprietePct: 45,
-  resteAPayer: 450_000,
-  prochainPaiementJours: 5,
-  estAJour: true,
-}
-
-function mockPayments(): Payment[] {
-  return [
-    {
-      id: 'p1',
-      libelle: 'Versement Hebdomadaire',
-      date: new Date(2026, 4, 22, 10, 30),
-      montant: 25_000,
-      paye: true,
-    },
-    {
-      id: 'p2',
-      libelle: 'Versement Hebdomadaire',
-      date: new Date(2026, 4, 15, 14, 15),
-      montant: 25_000,
-      paye: true,
-    },
-    {
-      id: 'p3',
-      libelle: 'Versement Hebdomadaire',
-      date: new Date(2026, 4, 8, 8, 45),
-      montant: 25_000,
-      paye: true,
-    },
-    {
-      id: 'p4',
-      libelle: 'Versement Hebdomadaire',
-      date: new Date(2026, 4, 1, 11, 0),
-      montant: 25_000,
-      paye: true,
-    },
-  ]
-}
+import { useAuth } from '../../auth/useAuth'
+import { ApiError } from '../../types/auth'
+import type { DriverPayment, DriverProgress } from '../../types/api'
+import {
+  getDriverProgress,
+  getDriverPayments,
+  createReport,
+  deleteDriverPayment,
+} from '../../services/driverService'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(d: Date) {
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr)
   const day = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
   const hh = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   return `${day} à ${hh}`
@@ -153,12 +105,25 @@ function CircularGauge({ pct }: { pct: number }) {
 // ─── DriverDashboard ─────────────────────────────────────────────────────────
 
 export default function DriverDashboard() {
+  const { user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme')
     if (saved === 'light' || saved === 'dark') return saved
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
+
+  // États de données
+  const [progress, setProgress] = useState<DriverProgress | null>(null)
+  const [payments, setPayments] = useState<DriverPayment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  // États signalement
+  const [signalerOpen, setSignalerOpen] = useState(false)
+  const [signalementTexte, setSignalementTexte] = useState('')
+  const [sendingReport, setSendingReport] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -169,19 +134,115 @@ export default function DriverDashboard() {
 
   const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
-  const payments = useMemo(() => mockPayments(), [])
-  const progress = mockProgress
+  // ── Chargement des données ─────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false
 
-  const [signalerOpen, setSignalerOpen] = useState(false)
-  const [signalementTexte, setSignalementTexte] = useState('')
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [progressData, paymentsData] = await Promise.all([
+          getDriverProgress(),
+          getDriverPayments(),
+        ])
+        if (cancelled) return
+        setProgress(progressData)
+        setPayments(paymentsData)
+      } catch (err) {
+        if (cancelled) return
+        const msg =
+          err instanceof ApiError
+            ? typeof err.body.message === 'string'
+              ? err.body.message
+              : err.body.message.join(', ')
+            : 'Impossible de charger les données. Veuillez réessayer.'
+        setError(msg)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
 
-  const handleSignaler = () => {
+    fetchData()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // ── Actions ────────────────────────────────────────────────────────────
+
+  const handleSignaler = async () => {
     if (!signalementTexte.trim()) return
-    console.log('[DriverDashboard] signalement:', signalementTexte)
-    window.alert('Signalement envoyé (mock).')
-    setSignalementTexte('')
-    setSignalerOpen(false)
+    setSendingReport(true)
+    try {
+      const report = await createReport({ description: signalementTexte.trim() })
+      window.alert(`Signalement envoyé (N°${report.id})`)
+      setSignalementTexte('')
+      setSignalerOpen(false)
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? typeof err.body.message === 'string'
+            ? err.body.message
+            : err.body.message.join(', ')
+          : "Erreur lors de l'envoi du signalement."
+      window.alert(msg)
+    } finally {
+      setSendingReport(false)
+    }
   }
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!window.confirm('Voulez-vous vraiment effacer ce paiement ? Cette action est irréversible.')) return
+    setDeleting(paymentId)
+    try {
+      await deleteDriverPayment(paymentId)
+      setPayments((prev) => prev.filter((p) => p.id !== paymentId))
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? typeof err.body.message === 'string'
+            ? err.body.message
+            : err.body.message.join(', ')
+          : 'Erreur lors de la suppression du paiement.'
+      window.alert(msg)
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  // ── États d'affichage ──────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="flex">
+          <DriverSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={theme} onToggleTheme={onToggleTheme} />
+          <main className="flex flex-1 items-center justify-center p-6">
+            <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          </main>
+        </div>
+      </SpotlightSection>
+    )
+  }
+
+  if (error) {
+    return (
+      <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="flex">
+          <DriverSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={theme} onToggleTheme={onToggleTheme} />
+          <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+            <p className="text-sm font-semibold text-red-600">{error}</p>
+            <Button onClick={() => window.location.reload()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+              Réessayer
+            </Button>
+          </main>
+        </div>
+      </SpotlightSection>
+    )
+  }
+
+  if (!progress) return null
 
   return (
     <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -246,23 +307,22 @@ export default function DriverDashboard() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 p-5 pt-0">
-                      <Badge variant="green" className="gap-1.5 px-3 py-1 text-xs">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        À jour
-                      </Badge>
+                      {progress.estAJour ? (
+                        <Badge variant="green" className="gap-1.5 px-3 py-1 text-xs">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          À jour
+                        </Badge>
+                      ) : (
+                        <Badge variant="red" className="gap-1.5 px-3 py-1 text-xs">
+                          <span className="h-2 w-2 rounded-full bg-red-500" />
+                          En retard
+                        </Badge>
+                      )}
                       <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
                         Prochain paiement dans {progress.prochainPaiementJours} jours
                       </div>
 
                       <div className="flex flex-row flex-wrap gap-2 pt-2">
-                        <Button
-                          type="button"
-                          onClick={() => window.alert('Contactez l\'administrateur')}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                        >
-                          <CreditCard className="h-4 w-4" />
-                          Effacer un paiement
-                        </Button>
                         <Button
                           type="button"
                           onClick={() => setSignalerOpen(true)}
@@ -284,31 +344,55 @@ export default function DriverDashboard() {
                     <CardTitle className="text-base">Paiements Récents</CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-auto p-5 pt-0">
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                      {payments.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
-                              {p.libelle}
+                    {payments.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-slate-400">Aucun paiement pour le moment.</p>
+                    ) : (
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {payments.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {p.libelle}
+                              </div>
+                              <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                {formatDate(p.date)}
+                              </div>
                             </div>
-                            <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                              {formatDate(p.date)}
+                            <div className="flex shrink-0 items-center gap-2">
+                              <div className="text-right">
+                                <div className="text-sm font-bold text-slate-900 dark:text-slate-50">
+                                  FCFA {formatXaf(p.montant)}
+                                </div>
+                                {p.paye ? (
+                                  <Badge variant="green" className="mt-1 gap-1 px-2 py-0.5 text-[10px]">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                    Payé
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="orange" className="mt-1 gap-1 px-2 py-0.5 text-[10px]">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
+                                    En attente
+                                  </Badge>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePayment(p.id)}
+                                disabled={deleting === p.id}
+                                className="ml-1 rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                                aria-label={`Effacer le paiement ${p.libelle}`}
+                              >
+                                {deleting === p.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
                             </div>
                           </div>
-                          <div className="shrink-0 text-right">
-                            <div className="text-sm font-bold text-slate-900 dark:text-slate-50">
-                              FCFA {formatXaf(p.montant)}
-                            </div>
-                            {p.paye && (
-                              <Badge variant="green" className="mt-1 gap-1 px-2 py-0.5 text-[10px]">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                Payé
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card></ParticleHover>
               </div>
@@ -317,7 +401,7 @@ export default function DriverDashboard() {
             {/* Footer identité */}
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Jean Dupont – Conducteur Vérité
+                {user?.fullName ?? 'Conducteur'} – Conducteur Vérité
               </div>
               <div className="text-xs text-slate-400 dark:text-slate-500">CamerRideShare</div>
             </div>
@@ -363,10 +447,17 @@ export default function DriverDashboard() {
                   <Button
                     type="button"
                     onClick={handleSignaler}
-                    disabled={!signalementTexte.trim()}
+                    disabled={!signalementTexte.trim() || sendingReport}
                     className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Envoyer
+                    {sendingReport ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Envoi...
+                      </>
+                    ) : (
+                      'Envoyer'
+                    )}
                   </Button>
                 </div>
               </div>
