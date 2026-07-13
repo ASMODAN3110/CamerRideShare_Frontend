@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AnimatedContent from '../components/AnimatedContent'
 import { Button } from '../components/ui/button'
@@ -81,6 +81,20 @@ export default function InscriptionPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // ── Dark mode (partagé avec les pages connectées) ──────────────────────
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme')
+    if (saved === 'light' || saved === 'dark') return saved
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'dark') root.classList.add('dark')
+    else root.classList.remove('dark')
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
   const canSubmit = useMemo(() => {
     return nom.trim().length > 0 && telephone.trim().length > 0 && motDePasse.trim().length >= 6
   }, [nom, telephone, motDePasse])
@@ -88,6 +102,17 @@ export default function InscriptionPage() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-slate-900">
+
+        <button
+          type="button"
+          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded border border-slate-200 bg-white/70 text-slate-900 backdrop-blur transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-50 dark:hover:bg-slate-800/60"
+          aria-label="Toggle dark mode"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="h-5 w-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A8.5 8.5 0 0 1 11.2 3a6.9 6.9 0 1 0 9.8 9.8Z" />
+          </svg>
+        </button>
 
         <div className="flex flex-col md:flex-row">
           {/* Colonne gauche : formulaire */}
