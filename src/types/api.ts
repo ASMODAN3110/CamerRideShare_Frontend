@@ -372,3 +372,44 @@ export interface ReportResponse {
   id: number
   status: 'OPEN'
 }
+
+// ─── Driver payments ─────────────────────────────────────────────────────
+
+export interface PaymentSummary {
+  totalPaye: number
+  totalDu: number
+  resteAPayer: number
+  dernierVersement: {
+    montant: number
+    date: string
+  }
+}
+
+export interface DriverPaymentRow {
+  id: string
+  date: string
+  libelle: string
+  montant: number
+  mode: string
+  status: 'Validé' | 'En attente'
+}
+
+export interface PaginatedDriverPayments {
+  data: DriverPaymentRow[]
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+// ─── Driver support ─────────────────────────────────────────────────────
+
+export type ReportCategorie = 'Panne mécanique' | 'Accident' | 'Retard de paiement' | 'Autre'
+
+export interface FaqItem {
+  id: number
+  question: string
+  answer: string
+}

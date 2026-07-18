@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calendar, CheckCircle, CreditCard, Smartphone, Wallet } from 'lucide-react'
 
 import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
@@ -8,30 +8,10 @@ import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type PaymentMode = 'Orange Money' | 'MTN MoMo'
-
-type Payment = {
-  id: string
-  date: string
-  type: 'Hebdomadaire' | 'Exceptionnel'
-  montant: number
-  mode: PaymentMode
-  status: 'Validé' | 'En attente'
-}
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const mockPayments: Payment[] = [
-  { id: 'p1', date: '24 oct. 2023, 10:30', type: 'Hebdomadaire', montant: 15_000, mode: 'Orange Money', status: 'Validé' },
-  { id: 'p2', date: '17 oct. 2023, 09:15', type: 'Hebdomadaire', montant: 15_000, mode: 'MTN MoMo', status: 'Validé' },
-  { id: 'p3', date: '10 oct. 2023, 11:45', type: 'Hebdomadaire', montant: 15_000, mode: 'Orange Money', status: 'Validé' },
-  { id: 'p4', date: '03 oct. 2023, 08:20', type: 'Hebdomadaire', montant: 15_000, mode: 'MTN MoMo', status: 'Validé' },
-  { id: 'p5', date: '26 sept. 2023, 14:10', type: 'Exceptionnel', montant: 50_000, mode: 'Orange Money', status: 'Validé' },
-  { id: 'p6', date: '19 sept. 2023, 10:00', type: 'Hebdomadaire', montant: 15_000, mode: 'Orange Money', status: 'Validé' },
-  { id: 'p7', date: '12 sept. 2023, 16:30', type: 'Hebdomadaire', montant: 15_000, mode: 'MTN MoMo', status: 'Validé' },
-]
+import { useAuth } from '../../auth/useAuth'
+import { ApiError } from '../../types/auth'
+import { getPaymentSummary, getDriverPayments } from '../../services/driverService'
+import type { PaymentSummary, DriverPaymentRow } from '../../types/api'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +19,7 @@ function formatXaf(amount: number) {
   return amount.toLocaleString('fr-FR')
 }
 
-function ModeIcon({ mode }: { mode: PaymentMode }) {
+function ModeIcon({ mode }: { mode: string }) {
   if (mode === 'Orange Money')
     return (
       <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
@@ -56,6 +36,7 @@ function ModeIcon({ mode }: { mode: PaymentMode }) {
 // ─── DriverPayments ─────────────────────────────────────────────────────────
 
 export default function DriverPayments() {
+  const { user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme')
@@ -72,22 +53,86 @@ export default function DriverPayments() {
 
   const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
-  const allPayments = mockPayments
+  // ── États de données ────────────────────────────────────────────────────────
+
+  const [summary, setSummary] = useState<PaymentSummary | null>(null)
+  const [payments, setPayments] = useState<DriverPaymentRow[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [page, setPage] = useState(1)
-  const pageSize = 5
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const totalPages = Math.max(1, Math.ceil(allPayments.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
+  // ── Chargement des données ──────────────────────────────────────────────────
 
-  const pageRows = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return allPayments.slice(start, start + pageSize)
-  }, [currentPage, allPayments])
+  useEffect(() => {
+    let cancelled = false
 
-  const totalPaye = useMemo(() => allPayments.reduce((s, p) => s + p.montant, 0), [allPayments])
-  const totalDu = 1_000_000
-  const resteAPayer = totalDu - totalPaye
-  const dernierVersement = allPayments[0]
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [summaryData, paymentsData] = await Promise.all([
+          getPaymentSummary(),
+          getDriverPayments(page, 5),
+        ])
+        if (cancelled) return
+        setSummary(summaryData)
+        setPayments(paymentsData.data)
+        setTotalCount(paymentsData.meta.total)
+        setTotalPages(paymentsData.meta.totalPages)
+      } catch (err) {
+        if (cancelled) return
+        const msg =
+          err instanceof ApiError
+            ? typeof err.body.message === 'string'
+              ? err.body.message
+              : err.body.message.join(', ')
+            : 'Impossible de charger les données. Veuillez réessayer.'
+        setError(msg)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    fetchData()
+    return () => {
+      cancelled = true
+    }
+  }, [page])
+
+  // ── États d'affichage ──────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="flex">
+          <DriverSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={theme} onToggleTheme={onToggleTheme} />
+          <main className="flex flex-1 items-center justify-center p-6">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+          </main>
+        </div>
+      </SpotlightSection>
+    )
+  }
+
+  if (error) {
+    return (
+      <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="flex">
+          <DriverSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={theme} onToggleTheme={onToggleTheme} />
+          <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
+            <p className="text-sm font-semibold text-red-600">{error}</p>
+            <Button onClick={() => window.location.reload()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+              Réessayer
+            </Button>
+          </main>
+        </div>
+      </SpotlightSection>
+    )
+  }
+
+  if (!summary) return null
 
   return (
     <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -122,7 +167,7 @@ export default function DriverPayments() {
                 </CardHeader>
                 <CardContent className="p-5 pt-0">
                   <div className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-                    {formatXaf(totalPaye)} FCFA
+                    {formatXaf(summary?.totalPaye ?? 0)} FCFA
                   </div>
                   <div className="mt-1 text-xs font-semibold text-slate-400">
                     Cumulé depuis le début
@@ -139,10 +184,10 @@ export default function DriverPayments() {
                 </CardHeader>
                 <CardContent className="p-5 pt-0">
                   <div className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-                    {formatXaf(resteAPayer)} FCFA
+                    {formatXaf(summary?.resteAPayer ?? 0)} FCFA
                   </div>
                   <div className="mt-1 text-xs font-semibold text-slate-400">
-                    Sur un total de {formatXaf(totalDu)} FCFA
+                    Sur un total de {formatXaf(summary?.totalDu ?? 0)} FCFA
                   </div>
                 </CardContent>
               </Card></ParticleHover>
@@ -156,10 +201,14 @@ export default function DriverPayments() {
                 </CardHeader>
                 <CardContent className="p-5 pt-0">
                   <div className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-                    {formatXaf(dernierVersement.montant)} FCFA
+                    {formatXaf(summary?.dernierVersement?.montant ?? 0)} FCFA
                   </div>
                   <div className="mt-1 text-xs font-semibold text-slate-400">
-                    Le {dernierVersement.date}
+                    Le {summary?.dernierVersement?.date
+                      ? new Date(summary.dernierVersement.date).toLocaleDateString('fr-FR', {
+                          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                        })
+                      : '—'}
                   </div>
                 </CardContent>
               </Card></ParticleHover>
@@ -193,31 +242,41 @@ export default function DriverPayments() {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100 bg-white dark:divide-slate-800/60 dark:bg-transparent">
-                      {pageRows.map((p) => (
-                        <TableRow key={p.id} className="transition hover:bg-slate-50/60 dark:hover:bg-slate-800/20">
-                          <TableCell className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
-                            {p.date}
-                          </TableCell>
-                          <TableCell className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-50">
-                            {p.type}
-                          </TableCell>
-                          <TableCell className="px-5 py-3.5 font-bold text-slate-900 dark:text-slate-50">
-                            {formatXaf(p.montant)} FCFA
-                          </TableCell>
-                          <TableCell className="px-5 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <ModeIcon mode={p.mode} />
-                              <span className="text-sm text-slate-600 dark:text-slate-300">{p.mode}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="px-5 py-3.5">
-                            <Badge variant="green" className="gap-1.5 px-2.5 py-1">
-                              <CheckCircle className="h-3 w-3" />
-                              {p.status}
-                            </Badge>
+                      {payments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">
+                            Aucun versement pour le moment.
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        payments.map((p) => (
+                          <TableRow key={p.id} className="transition hover:bg-slate-50/60 dark:hover:bg-slate-800/20">
+                            <TableCell className="px-5 py-3.5 text-slate-500 dark:text-slate-400">
+                              {new Date(p.date).toLocaleDateString('fr-FR', {
+                                day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-50">
+                              {p.libelle}
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5 font-bold text-slate-900 dark:text-slate-50">
+                              {formatXaf(p.montant)} FCFA
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5">
+                              <div className="flex items-center gap-2">
+                                <ModeIcon mode={p.mode} />
+                                <span className="text-sm text-slate-600 dark:text-slate-300">{p.mode}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-5 py-3.5">
+                              <Badge variant={p.status === 'Validé' ? 'green' : 'orange'} className="gap-1.5 px-2.5 py-1">
+                                <CheckCircle className="h-3 w-3" />
+                                {p.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -227,14 +286,14 @@ export default function DriverPayments() {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Affichage de{' '}
                     <span className="font-semibold text-slate-700 dark:text-slate-200">
-                      {allPayments.length}
+                      {totalCount}
                     </span>{' '}
                     versements récents
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
-                      disabled={currentPage <= 1}
+                      disabled={page <= 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
@@ -242,7 +301,7 @@ export default function DriverPayments() {
                     </Button>
                     <Button
                       type="button"
-                      disabled={currentPage >= totalPages}
+                      disabled={page >= totalPages}
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
@@ -256,7 +315,7 @@ export default function DriverPayments() {
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Jean Dupont – Conducteur Véritable
+                {user?.fullName ?? 'Conducteur'} – Conducteur Véritable
               </div>
               <div className="text-xs text-slate-400 dark:text-slate-500">CamerRideShare</div>
             </div>

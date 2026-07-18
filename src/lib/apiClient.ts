@@ -17,7 +17,7 @@ export function setApiAuthHandlers(handlers: AuthHandlers) {
   authHandlers = handlers
 }
 
-function getBaseUrl() {
+export function getBaseUrl() {
   const url = import.meta.env.VITE_API_URL
   if (typeof url === 'string' && url.length > 0) {
     return url.replace(/\/$/, '')

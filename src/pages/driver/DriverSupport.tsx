@@ -13,43 +13,14 @@ import {
 import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
 import { Button } from '../../components/ui/button'
+import { useAuth } from '../../auth/useAuth'
+import { getDriverFaq, submitReportWithPhoto } from '../../services/driverService'
+import type { FaqItem, ReportCategorie } from '../../types/api'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Catégories (données statiques) ──────────────────────────────────────
 
-type FaqItem = {
-  question: string
-  answer: string
-}
-
-type CategorieSignalement = 'Panne mécanique' | 'Accident' | 'Retard de paiement' | 'Autre'
-
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const faqItems: FaqItem[] = [
-  {
-    question: 'Comment payer par MoMo / OM ?',
-    answer:
-      'Vous pouvez payer via MTN Mobile Money ou Orange Money en sélectionnant le mode de paiement dans l\'application. Le versement est immédiatement crédité sur votre compte.',
-  },
-  {
-    question: 'Que faire en cas de panne mécanique ?',
-    answer:
-      'Contactez immédiatement votre responsable de flotte ou utilisez le formulaire de signalement ci-contre. Un mécanicien agréé vous contactera sous 24h.',
-  },
-  {
-    question: 'Comment fonctionne la pleine propriété ?',
-    answer:
-      'Chaque versement hebdomadaire augmente votre part de propriété. Une fois 100% atteint, la moto vous appartient entièrement sans aucun frais supplémentaire.',
-  },
-  {
-    question: 'Délai de traitement des réclamations ?',
-    answer:
-      'Les réclamations sont traitées sous 48 à 72 heures ouvrées. Les signalements urgents (accident, panne) sont prioritaires.',
-  },
-]
-
-const categories: CategorieSignalement[] = [
+const CATEGORIES: ReportCategorie[] = [
   'Panne mécanique',
   'Accident',
   'Retard de paiement',
@@ -59,6 +30,7 @@ const categories: CategorieSignalement[] = [
 // ─── DriverSupport ─────────────────────────────────────────────────────────
 
 export default function DriverSupport() {
+  const { user } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme')
@@ -75,28 +47,60 @@ export default function DriverSupport() {
 
   const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
-  // FAQ accordéon
+  // ── FAQ ──────────────────────────────────────────────────────────────
+
+  const [faq, setFaq] = useState<FaqItem[]>([])
+  const [faqLoading, setFaqLoading] = useState(true)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  // Formulaire
-  const [categorie, setCategorie] = useState<CategorieSignalement | ''>('')
+  useEffect(() => {
+    let cancelled = false
+
+    getDriverFaq()
+      .then((data) => {
+        if (!cancelled) setFaq(data)
+      })
+      .catch(() => {
+        // Fallback : FAQ statiques si l'API n'est pas disponible
+        if (!cancelled) {
+          setFaq([
+            { id: 1, question: 'Comment payer par MoMo / OM ?', answer: 'Vous pouvez payer via MTN Mobile Money ou Orange Money en sélectionnant le mode de paiement dans l\'application. Le versement est immédiatement crédité sur votre compte.' },
+            { id: 2, question: 'Que faire en cas de panne mécanique ?', answer: 'Contactez immédiatement votre responsable de flotte ou utilisez le formulaire de signalement ci-contre. Un mécanicien agréé vous contactera sous 24h.' },
+            { id: 3, question: 'Comment fonctionne la pleine propriété ?', answer: 'Chaque versement hebdomadaire augmente votre part de propriété. Une fois 100% atteint, la moto vous appartient entièrement sans aucun frais supplémentaire.' },
+            { id: 4, question: 'Délai de traitement des réclamations ?', answer: 'Les réclamations sont traitées sous 48 à 72 heures ouvrées. Les signalements urgents (accident, panne) sont prioritaires.' },
+          ])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFaqLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [])
+
+  // ── Formulaire de signalement ────────────────────────────────────────
+
+  const [categorie, setCategorie] = useState<ReportCategorie | ''>('')
   const [description, setDescription] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const canSubmit = categorie !== '' && description.trim().length > 0
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) return
     setSubmitting(true)
-    console.log('[DriverSupport] signalement:', { categorie, description, photo: photo?.name })
-    setTimeout(() => {
-      window.alert('Signalement envoyé avec succès (mock).')
+    try {
+      const result = await submitReportWithPhoto(description.trim(), categorie as ReportCategorie, photo ?? undefined)
+      window.alert(`Signalement envoyé (N°${result.id})`)
       setCategorie('')
       setDescription('')
       setPhoto(null)
+    } catch {
+      window.alert("Erreur lors de l'envoi du signalement. Veuillez réessayer.")
+    } finally {
       setSubmitting(false)
-    }, 500)
+    }
   }
 
   return (
@@ -129,14 +133,17 @@ export default function DriverSupport() {
                     <CardTitle className="text-base">Foire Aux Questions</CardTitle>
                   </CardHeader>
                   <CardContent className="p-5 pt-0">
+                    {faqLoading ? (
+                      <p className="py-4 text-center text-sm text-slate-400">Chargement des questions…</p>
+                    ) : (
                     <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                      {faqItems.map((item, i) => {
-                        const isOpen = openFaq === i
+                      {faq.map((item) => {
+                        const isOpen = openFaq === item.id
                         return (
-                          <div key={i} className="py-3 first:pt-0 last:pb-0">
+                          <div key={item.id} className="py-3 first:pt-0 last:pb-0">
                             <button
                               type="button"
-                              onClick={() => setOpenFaq(isOpen ? null : i)}
+                              onClick={() => setOpenFaq(isOpen ? null : item.id)}
                               className="flex w-full items-start justify-between gap-3 text-left"
                             >
                               <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
@@ -157,6 +164,7 @@ export default function DriverSupport() {
                         )
                       })}
                     </div>
+                    )}
                   </CardContent>
                 </Card></ParticleHover>
 
@@ -226,20 +234,20 @@ export default function DriverSupport() {
                       </label>
                       <select
                         value={categorie}
-                        onChange={(e) => setCategorie(e.target.value as CategorieSignalement | '')}
+                        onChange={(e) => setCategorie(e.target.value as ReportCategorie | '')}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-50"
                       >
                         <option value="" disabled>
                           Sélectionnez une catégorie
                         </option>
-                        {categories.map((cat) => (
+                        {CATEGORIES.map((cat) => (
                           <option key={cat} value={cat}>
                             {cat}
                           </option>
                         ))}
                       </select>
                     </div>
-
+ 
                     {/* Description */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -302,7 +310,7 @@ export default function DriverSupport() {
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                Jean Dupont – Conducteur Véritable
+                {user?.fullName ?? 'Conducteur'} – Conducteur Véritable
               </div>
               <div className="text-xs text-slate-400 dark:text-slate-500">CamerRideShare</div>
             </div>

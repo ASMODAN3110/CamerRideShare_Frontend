@@ -6,6 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from './ui/button'
 import { useMemo } from 'react'
 import { useLogout } from '../auth/useLogout'
+import { useAuth } from '../auth/useAuth'
 
 type DriverSidebarProps = {
   sidebarOpen: boolean
@@ -18,6 +19,11 @@ export default function DriverSidebar(props: DriverSidebarProps) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const handleLogout = useLogout()
+  const { user } = useAuth()
+
+  const initials = user?.fullName
+    ? user.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'JD'
 
   const items = useMemo(() => {
     return [
@@ -120,10 +126,10 @@ export default function DriverSidebar(props: DriverSidebarProps) {
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                    <span className="text-sm font-bold">JD</span>
+                    <span className="text-sm font-bold">{initials}</span>
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Jean Dupont</div>
+                    <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{user?.fullName ?? 'Conducteur'}</div>
                     <div className="truncate text-xs text-slate-500 dark:text-slate-400">Conducteur</div>
                   </div>
                 </div>
@@ -189,10 +195,10 @@ export default function DriverSidebar(props: DriverSidebarProps) {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <span className="text-sm font-bold">JD</span>
+                <span className="text-sm font-bold">{initials}</span>
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">Jean Dupont</div>
+                <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{user?.fullName ?? 'Conducteur'}</div>
                 <div className="truncate text-xs text-slate-500 dark:text-slate-400">Conducteur</div>
               </div>
             </div>

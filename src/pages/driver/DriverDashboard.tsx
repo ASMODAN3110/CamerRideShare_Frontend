@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 
 import { useAuth } from '../../auth/useAuth'
 import { ApiError } from '../../types/auth'
-import type { DriverPayment, DriverProgress } from '../../types/api'
+import type { DriverPaymentRow, DriverProgress } from '../../types/api'
 import {
   getDriverProgress,
   getDriverPayments,
@@ -115,7 +115,7 @@ export default function DriverDashboard() {
 
   // États de données
   const [progress, setProgress] = useState<DriverProgress | null>(null)
-  const [payments, setPayments] = useState<DriverPayment[]>([])
+  const [payments, setPayments] = useState<DriverPaymentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -148,7 +148,7 @@ export default function DriverDashboard() {
         ])
         if (cancelled) return
         setProgress(progressData)
-        setPayments(paymentsData)
+        setPayments(paymentsData.data)
       } catch (err) {
         if (cancelled) return
         const msg =
@@ -363,7 +363,7 @@ export default function DriverDashboard() {
                                 <div className="text-sm font-bold text-slate-900 dark:text-slate-50">
                                   FCFA {formatXaf(p.montant)}
                                 </div>
-                                {p.paye ? (
+                                {p.status === 'Validé' ? (
                                   <Badge variant="green" className="mt-1 gap-1 px-2 py-0.5 text-[10px]">
                                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                     Payé

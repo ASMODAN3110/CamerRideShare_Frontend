@@ -354,7 +354,7 @@ function GrandPatronDashboard(props: {
           <Button
             type="button"
             onClick={props.onOpenIncident}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             <AlertTriangle className="h-4 w-4 text-red-500" />
             Signaler Incident
@@ -362,7 +362,7 @@ function GrandPatronDashboard(props: {
           <Button
             type="button"
             onClick={props.onOpenInvitation}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             <Users className="h-4 w-4 text-emerald-600" />
             Inviter Investisseur

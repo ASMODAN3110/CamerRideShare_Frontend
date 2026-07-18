@@ -88,6 +88,31 @@ Sidebar : `DriverSidebar.tsx` — thème géré localement par page.
 | `/driver-support` | DriverSupport | FAQ, contact, signalement |
 | `/driver-settings` | DriverSettings | Paramètres du compte, sécurité, notifications, langue |
 
+## Indicateur de tendance (delta)
+
+Les cartes de statistiques du dashboard affichent un **badge de variation** (delta) qui compare la valeur actuelle à la période précédente.
+
+```
+╭──────────────────────╮
+│ Parc Total           │
+│                      │
+│ 124                  │
+│ ╭──────────────╮     │
+│ │ ↗ 0%         │     │  ← badge delta
+│ ╰──────────────╯     │
+╰──────────────────────╯
+```
+
+**Logique** (dans `src/lib/format.ts`) :
+
+- `deltaPct > 0` → badge **vert** avec icône `TrendingUp` → +X%
+- `deltaPct < 0` → badge **rouge** avec icône `TrendingDown` → -X%
+- `deltaPct = 0` → badge **gris** (neutre) avec icône `TrendingUp` → 0%
+
+La valeur `deltaPct` est renvoyée par l'API (ex: `overview.fleet.deltaPct`, `overview.monthlyRevenue.deltaPct`). Si le backend n'est pas encore alimenté avec des données de comparaison, la valeur sera `0` et le badge s'affichera en gris.
+
+**Ce que ça répond** : *"Est-ce que ça augmente ou ça diminue par rapport à avant ?"*
+
 ## Effets visuels
 
 - **SpotlightSection** — projecteur lumineux suivant la souris (`MagicBento.tsx`)

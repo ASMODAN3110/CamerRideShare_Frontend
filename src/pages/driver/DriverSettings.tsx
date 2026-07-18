@@ -15,6 +15,7 @@ import {
 import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
 import DriverSidebar from '../../components/DriverSidebar'
 import { useLogout } from '../../auth/useLogout'
+import { useAuth } from '../../auth/useAuth'
 import { Avatar } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
@@ -32,18 +33,10 @@ type DriverSettings = {
   language: Language
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const DRIVER = {
-  name: 'Jean Dupont',
-  email: 'jean.dupont@gmail.com',
-  phone: '+237 6 00 00 00 00',
-  memberSince: 2021,
-}
-
 // ─── DriverSettings ─────────────────────────────────────────────────────────
 
 export default function DriverSettings() {
+  const { user } = useAuth()
   const logoutAndRedirect = useLogout()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -125,17 +118,17 @@ export default function DriverSettings() {
                 <CardContent className="space-y-4 p-5 pt-0">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16 bg-blue-600 text-lg font-bold text-white">
-                      JD
+                      {user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? 'JD'}
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-slate-900 dark:text-slate-50">
-                          {DRIVER.name}
+                          {user?.fullName ?? 'Conducteur'}
                         </span>
                         <Badge variant="green">Conducteur Vérifié</Badge>
                       </div>
                       <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                        Membre depuis {DRIVER.memberSince}
+                        Membre depuis {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
                       </p>
                     </div>
                   </div>
@@ -145,11 +138,11 @@ export default function DriverSettings() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-3 text-sm">
                       <Smartphone className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="text-slate-600 dark:text-slate-300">{DRIVER.phone}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{user?.phoneNumber ?? '—'}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <MessageCircle className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="text-slate-600 dark:text-slate-300">{DRIVER.email}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{user?.email ?? '—'}</span>
                     </div>
                   </div>
 
@@ -337,7 +330,7 @@ export default function DriverSettings() {
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                {DRIVER.name} – Conducteur Vérifié
+                {user?.fullName ?? 'Conducteur'} – Conducteur Vérifié
               </div>
               <div className="text-xs text-slate-400 dark:text-slate-500">CamerRideShare</div>
             </div>
