@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
+  ChevronRight,
   CircleDot,
   CreditCard,
   Gauge,
@@ -233,7 +234,7 @@ function TresorerieCard(props: { treasury: DashboardOverview['treasuryWeekly'] }
   )
 }
 
-function AlertesCard(props: { alerts: Alert[] }) {
+function AlertesCard(props: { alerts: Alert[]; onViewIncident: (alert: Alert) => void }) {
   return (
     <Card>
       <CardHeader className="p-5 pb-3">
@@ -278,8 +279,13 @@ function AlertesCard(props: { alerts: Alert[] }) {
                   </div>
                   <div className="mt-1 text-xs font-semibold">
                     {a.type === 'INCIDENT' ? (
-                      <Button type="button" className="text-blue-600 hover:underline dark:text-blue-300">
-                        Voir détails
+                      <Button
+                        type="button"
+                        onClick={() => props.onViewIncident(a)}
+                        className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
+                      >
+                        Détails
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </Button>
                     ) : a.amount !== undefined ? (
                       <span className="text-red-600 dark:text-red-300">{formatXafLabel(a.amount)}</span>
@@ -327,6 +333,7 @@ function GrandPatronDashboard(props: {
   onOpenIncident: () => void
   onOpenInvitation: () => void
   onViewAllPayments: () => void
+  onViewIncident: (alert: Alert) => void
 }) {
   return (
     <div className="space-y-4">
@@ -336,7 +343,7 @@ function GrandPatronDashboard(props: {
         </div>
         <div className="flex flex-col gap-4">
           <TresorerieCard treasury={props.overview.treasuryWeekly} />
-          <AlertesCard alerts={props.alerts} />
+          <AlertesCard alerts={props.alerts} onViewIncident={props.onViewIncident} />
         </div>
       </div>
 
@@ -612,6 +619,95 @@ function ConducteurDashboard() {
   )
 }
 
+function IncidentDetailModal(props: { alert: Alert; onClose: () => void }) {
+  const a = props.alert
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={props.onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Détails de l'Incident</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Signalé le {formatShortDate(new Date().toISOString())}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={props.onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
+            <Avatar className="h-14 w-14">
+              {a.avatarUrl ? (
+                <AvatarImage src={a.avatarUrl} alt={a.driverName} className="h-full w-full rounded-full object-cover" />
+              ) : null}
+              <AvatarFallback className="text-base">{initials(a.driverName)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="text-base font-bold text-slate-900 dark:text-slate-50">{a.driverName}</div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">{a.location || 'Localisation inconnue'}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+              <div className="text-xs font-medium text-slate-500">Type</div>
+              <div className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-50">Incident</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+              <div className="text-xs font-medium text-slate-500">Statut</div>
+              <div className="mt-1">
+                <span className="inline-flex rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
+                  {a.label}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {a.amount !== undefined ? (
+            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+              <div className="text-xs font-medium text-slate-500">Montant concerné</div>
+              <div className="mt-1 text-sm font-bold text-red-600 dark:text-red-300">{formatXafLabel(a.amount)}</div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            type="button"
+            onClick={() => { props.onClose(); window.location.href = '/parc' }}
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+          >
+            Voir dans le parc
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={props.onClose}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            Fermer
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggleTheme: () => void }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -619,6 +715,7 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [incidentOpen, setIncidentOpen] = useState(false)
   const [invitationOpen, setInvitationOpen] = useState(false)
+  const [selectedIncident, setSelectedIncident] = useState<Alert | null>(null)
 
   const { overview, alerts, transactions, loading, error, refresh } = useAdminDashboard()
 
@@ -707,6 +804,7 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
                   onOpenIncident={() => setIncidentOpen(true)}
                   onOpenInvitation={() => setInvitationOpen(true)}
                   onViewAllPayments={() => navigate('/paiements')}
+                  onViewIncident={(alert) => setSelectedIncident(alert)}
                 />
                 <div className="hidden">
                   <InvestorDashboard />
@@ -721,6 +819,9 @@ export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggle
       <PaymentModal isOpen={paymentOpen} onClose={() => setPaymentOpen(false)} onSuccess={() => void refresh()} />
       <IncidentModal isOpen={incidentOpen} onClose={() => setIncidentOpen(false)} onSuccess={() => void refresh()} />
       <InvitationModal isOpen={invitationOpen} onClose={() => setInvitationOpen(false)} onSuccess={() => void refresh()} />
+      {selectedIncident ? (
+        <IncidentDetailModal alert={selectedIncident} onClose={() => setSelectedIncident(null)} />
+      ) : null}
     </SpotlightSection>
   )
 }

@@ -25,9 +25,18 @@ export function AvatarImage(props: AvatarImageProps) {
 
 type AvatarFallbackProps = {
   children: ReactNode
+  className?: string
 }
 
 export function AvatarFallback(props: AvatarFallbackProps) {
-  return <div className="flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200">{props.children}</div>
+  return (
+    <div
+      className={['flex h-full w-full items-center justify-center bg-slate-100 text-sm font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200', props.className]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {props.children}
+    </div>
+  )
 }
 
