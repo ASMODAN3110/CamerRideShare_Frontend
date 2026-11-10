@@ -1,12 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/logo.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#2563eb" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="256x256" href="/favicon-256.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#148664" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CamerRideShare" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="Plateforme d'investissement participatif pour motos-taxis au Cameroun." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>CamerRideShare</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
@@ -15,10 +23,8 @@
       // stale Vite modules (previously caused React Compiler "useMemoCache" crashes),
       // then reload once so fresh modules load.
       (function () {
-        var isDev =
-          /localhost|127\.0\.0\.1/.test(location.hostname) ||
-          location.port === '8081' ||
-          location.port === '5173'
+        // serveur de développement uniquement (ports 5173 / 8081) : sur un build, le service worker est voulu
+        var isDev = location.port === '8081' || location.port === '5173'
         if (!isDev) return
 
         var flag = 'crs-dev-cache-cleared-v4'
@@ -45,6 +51,37 @@
             location.reload()
           })
         }
+      })()
+    </script>
+    <script>
+      // Garde-fou de démarrage (production) : si l'application n'a pas démarré après 10 s (fichier obsolète, cache corrompu),
+      // on supprime service worker et caches puis on recharge depuis le réseau, une seule fois par 30 s.
+      (function () {
+        if (location.port === '8081' || location.port === '5173') return
+        setTimeout(function () {
+          if (window.__crsBooted) return
+          try {
+            var last = Number(sessionStorage.getItem('crs-recovered-at') || 0)
+            if (Date.now() - last < 30000) return
+            sessionStorage.setItem('crs-recovered-at', String(Date.now()))
+          } catch (e) {}
+          var tasks = []
+          if ('serviceWorker' in navigator) {
+            tasks.push(
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister() }))
+              }),
+            )
+          }
+          if (window.caches && caches.keys) {
+            tasks.push(
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+              }),
+            )
+          }
+          Promise.all(tasks).then(function () { location.reload() }, function () { location.reload() })
+        }, 10000)
       })()
     </script>
     <script type="module" src="/src/main.tsx"></script>

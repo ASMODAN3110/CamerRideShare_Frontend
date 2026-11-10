@@ -164,6 +164,17 @@ docker run -p 8080:80 camerrideshare-frontend
 
 Build multi-stage : `deps` → `build` (`npm run build`) → `nginx:alpine` avec config SPA dans `nginx/default.conf`.
 
+## Application installable (PWA)
+
+L'application s'installe sur mobile (Android, iPhone) et sur ordinateur (Chrome, Edge) : bouton « Installer l'application » sur la page de connexion et dans la barre latérale. Sur iPhone / iPad, une fenêtre explique le geste (Partager → Sur l'écran d'accueil).
+
+- **Mise à jour automatique** : le service worker (généré par `vite-plugin-pwa`) vérifie une nouvelle version au chargement, toutes les 30 min, au retour au premier plan et au retour du réseau. La nouvelle version est activée seule, sans action de l'utilisateur, dès que ce n'est plus gênant : page masquée, changement de page, ou ≥ 8 s sans saisie ni fenêtre ouverte (une saisie en cours n'est jamais perdue). Code : `src/lib/pwa.ts`.
+- **Récupération en cas de problème** : fichier obsolète après un déploiement (`vite:preloadError`), erreur d'affichage (`AppErrorBoundary`) ou application qui ne démarre pas après 10 s (garde-fou dans `index.html`) → service worker et caches sont supprimés et la page recharge depuis le réseau, une seule fois par 30 s (jamais de boucle).
+- **Cache** : uniquement l'application (HTML, JS, CSS, polices, icônes) et les photos de véhicules. Les appels à l'API et les preuves de paiement ne sont **jamais** mis en cache. Hors connexion, l'application s'ouvre et un bandeau prévient que les données peuvent être anciennes.
+- **Déploiement** : `sw.js`, `index.html` et `manifest.webmanifest` doivent être servis avec `Cache-Control: no-cache` (déjà configuré dans `nginx/default.conf` et `vercel.json`), sinon une nouvelle version est détectée avec retard. L'installation exige **HTTPS** (ou `localhost`).
+- **Tester** : le service worker est désactivé avec `npm run dev`. Utiliser `npm run build && npm run preview` (http://127.0.0.1:4173), puis l'onglet *Application* des outils de développement.
+- **Icônes** : `public/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png` (tirées de `logo.png`) ; le manifeste est déclaré dans `vite.config.ts`.
+
 ## Notes
 
 - Toutes les données affichées sont **statiques / mockées** (MVP UI).
