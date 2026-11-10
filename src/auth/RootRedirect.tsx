@@ -13,5 +13,5 @@ export default function RootRedirect() {
     return <Navigate to={homeRouteForRole(user.role)} replace />
   }
 
-  return <Navigate to="/inscription" replace />
+  return <Navigate to="/connexion" replace />
 }

@@ -7,6 +7,10 @@ export const ADMIN_ROUTES = [
   '/parc',
   '/paiements',
   '/investisseurs',
+  '/demandes-parts',
+  '/reversements',
+  '/calendrier',
+  '/retards',
   '/parametres',
 ] as const
 
@@ -17,6 +21,7 @@ const DRIVER_PREFIX = '/driver-'
 export const INVESTOR_ROUTES = [
   '/investor-dashboard',
   '/investor-fleet',
+  '/investor-market',
   '/investor-revenues',
   '/investor-reports',
   '/investor-settings',

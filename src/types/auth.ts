@@ -21,12 +21,17 @@ export type LoginBody = {
   password: string
 }
 
-export type RegisterBody = {
+export type AcceptInvitationBody = {
+  token: string
+  fullName: string
   phoneNumber: string
   password: string
-  fullName: string
+}
+
+export type InvitationInfo = {
+  email: string
   role: UserRole
-  email?: string
+  expiresAt: string
 }
 
 export type ApiErrorBody = {

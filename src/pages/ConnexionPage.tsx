@@ -1,32 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import AnimatedContent from '../components/AnimatedContent'
-import { Button } from '../components/ui/button'
+import { AlertTriangle, ArrowRight, Download, Eye, EyeOff, Loader2, Lock, Mail, Phone } from 'lucide-react'
+import AuthShell from '@/components/auth/AuthShell'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import InstallAppButton from '@/components/pwa/InstallAppButton'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useAuth } from '../auth/useAuth'
 import { resolvePostLoginPath } from '../auth/routeAccess'
 import { login as loginRequest } from '../services/authService'
 import { ApiError } from '../types/auth'
-
-function IconPhone(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M22 16.92v.1a2.01 2.01 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.09 4.18 2.01 2.01 0 0 1 4.11 2h.1a2 2 0 0 1 2 1.72c.13.92.38 1.82.74 2.68a2 2 0 0 1-.45 2.11L6.1 9.9a16 16 0 0 0 8 8l1.39-1.39a2 2 0 0 1 2.11-.45c.86.36 1.76.61 2.68.74a2 2 0 0 1 1.72 2Z"
-      />
-    </svg>
-  )
-}
-
-function IconLock(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <rect x="4.5" y="11" width="15" height="10" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 11V7.5a4.5 4.5 0 0 1 9 0V11" />
-    </svg>
-  )
-}
 
 export default function ConnexionPage() {
   const navigate = useNavigate()
@@ -36,24 +20,9 @@ export default function ConnexionPage() {
   const [motDePasse, setMotDePasse] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
-  // ── Dark mode (partagé avec les pages connectées) ──────────────────────
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('theme')
-    if (saved === 'light' || saved === 'dark') return saved
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
-
-  useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') root.classList.add('dark')
-    else root.classList.remove('dark')
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  const canSubmit = useMemo(() => {
-    return telephone.trim().length > 0 && motDePasse.trim().length >= 6
-  }, [telephone, motDePasse])
+  const canSubmit = useMemo(() => telephone.trim().length > 0 && motDePasse.trim().length >= 6, [telephone, motDePasse])
 
   const fromPath =
     typeof location.state === 'object' &&
@@ -63,137 +32,100 @@ export default function ConnexionPage() {
       ? (location.state as { from: string }).from
       : null
 
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSubmit || isSubmitting) return
+
+    setError(null)
+    setIsSubmitting(true)
+    try {
+      const data = await loginRequest({ phoneNumber: telephone.trim(), password: motDePasse })
+      login(data.access_token, data.user)
+      navigate(resolvePostLoginPath(fromPath, data.user.role), { replace: true })
+    } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401) {
+        setError('Identifiants invalides.')
+      } else if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('Impossible de se connecter. Vérifiez que le serveur est démarré.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
-      <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-slate-900">
-        <button
-          type="button"
-          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded border border-slate-200 bg-white/70 text-slate-900 backdrop-blur transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-50 dark:hover:bg-slate-800/60"
-          aria-label="Toggle dark mode"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="h-5 w-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A8.5 8.5 0 0 1 11.2 3a6.9 6.9 0 1 0 9.8 9.8Z" />
-          </svg>
-        </button>
-        <div className="flex flex-col md:flex-row">
-          <AnimatedContent className="w-full md:w-1/2">
-            <div className="w-full p-8 md:p-12">
-              <img src="/logo.png" alt="CamerRideShare" className="mx-auto mb-6 h-48 w-auto" />
-              <h2 className="text-center text-2xl font-semibold text-slate-900 dark:text-slate-50">Connexion</h2>
-              <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-300">
-                Entrez vos informations pour continuer.
-              </p>
+    <AuthShell
+      title="Connexion"
+      subtitle="Entrez vos informations pour accéder à votre espace."
+      panelTitle="Bon retour !"
+      panelText="Gérez votre flotte, vos paiements et vos investissements au même endroit."
+    >
+      <form className="grid gap-6" onSubmit={onSubmit}>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
 
-              <form
-                className="mt-8 flex flex-col gap-4"
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  if (!canSubmit || isSubmitting) return
-
-                  setError(null)
-                  setIsSubmitting(true)
-
-                  try {
-                    const data = await loginRequest({
-                      phoneNumber: telephone.trim(),
-                      password: motDePasse,
-                    })
-                    login(data.access_token, data.user)
-                    navigate(resolvePostLoginPath(fromPath, data.user.role), { replace: true })
-                  } catch (err) {
-                    if (err instanceof ApiError && err.statusCode === 401) {
-                      setError('Identifiants invalides.')
-                    } else if (err instanceof ApiError) {
-                      setError(err.message)
-                    } else {
-                      setError('Impossible de se connecter. Vérifiez que le serveur est démarré.')
-                    }
-                  } finally {
-                    setIsSubmitting(false)
-                  }
-                }}
-              >
-                {error ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-                    {error}
-                  </div>
-                ) : null}
-
-                <label className="flex flex-col gap-2">
-                  <span className="sr-only">Numéro de téléphone</span>
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                    <IconPhone className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                    <input
-                      value={telephone}
-                      onChange={(e) => setTelephone(e.target.value)}
-                      placeholder="Numéro de téléphone"
-                      autoComplete="tel"
-                      className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                    />
-                  </div>
-                </label>
-
-                <label className="flex flex-col gap-2">
-                  <span className="sr-only">Mot de passe</span>
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                    <IconLock className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                    <input
-                      value={motDePasse}
-                      onChange={(e) => setMotDePasse(e.target.value)}
-                      placeholder="Mot de passe"
-                      type="password"
-                      autoComplete="current-password"
-                      className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                    />
-                  </div>
-                </label>
-
-                <Button
-                  type="submit"
-                  disabled={!canSubmit || isSubmitting}
-                  className="mt-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-blue-600 disabled:text-white disabled:opacity-100"
-                >
-                  {isSubmitting ? 'Connexion…' : 'Se connecter'}
-                </Button>
-
-                <div className="mt-6 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">
-                  PAS ENCORE INSCRIT ?
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => navigate('/inscription')}
-                  className="mt-3 text-center text-sm font-semibold text-blue-700 hover:underline dark:text-blue-300"
-                >
-                  S&apos;inscrire
-                </Button>
-              </form>
-            </div>
-          </AnimatedContent>
-
-          <div className="relative w-full overflow-hidden rounded-2xl bg-blue-700 p-8 text-white shadow-xl shadow-blue-900/25 md:w-1/2 md:rounded-tl-[4.5rem] md:rounded-bl-[4.5rem] md:rounded-tr-2xl md:rounded-br-2xl dark:bg-blue-900 md:p-12">
-            <div className="pointer-events-none absolute -top-20 -right-24 z-0 h-80 w-80 rounded-full bg-blue-900/20 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-20 z-0 h-80 w-80 rounded-full bg-blue-900/15 blur-2xl" />
-
-            <div className="relative z-10 flex h-full flex-col justify-center">
-              <h3 className="text-center text-3xl font-bold">Bon retour !</h3>
-              <p className="mt-4 text-center text-sm leading-relaxed opacity-90">
-                Connectez-vous pour continuer à partager vos trajets.
-              </p>
-
-              <div className="mt-8 flex justify-center">
-                <Button
-                  type="button"
-                  onClick={() => navigate('/inscription')}
-                  className="rounded-full border-2 border-white bg-transparent px-10 py-2 text-sm font-semibold text-white hover:bg-white/10"
-                >
-                  Créer un compte
-                </Button>
-              </div>
-            </div>
+        <div className="grid gap-2">
+          <Label htmlFor="login-phone" className="text-base">Numéro de téléphone</Label>
+          <div className="relative">
+            <Phone className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <Input id="login-phone" className="h-12 pl-12 text-base md:text-base" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="6XX XXX XXX" autoComplete="tel" />
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="login-password" className="text-base">Mot de passe</Label>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <Input id="login-password" className="h-12 pl-12 pr-12 text-base md:text-base" type={showPassword ? 'text' : 'password'} value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 size-10 -translate-y-1/2 text-muted-foreground [&_svg]:size-5"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            >
+              {showPassword ? <EyeOff /> : <Eye />}
+            </Button>
+          </div>
+        </div>
+
+        <Button type="submit" size="lg" className="h-13 text-base font-bold [&_svg]:size-5" disabled={!canSubmit || isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Connexion…
+            </>
+          ) : (
+            <>
+              Se connecter
+              <ArrowRight />
+            </>
+          )}
+        </Button>
+
+        <InstallAppButton>
+          {({ onClick }) => (
+            <Button type="button" variant="outline" size="lg" className="h-12 text-base [&_svg]:size-5" onClick={onClick} data-testid="install-app">
+              <Download />
+              Installer l&apos;application
+            </Button>
+          )}
+        </InstallAppButton>
+
+        <div className="mt-2 flex items-start gap-3 rounded-lg border bg-card p-4">
+          <Mail className="mt-0.5 size-5 shrink-0 text-primary" />
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            L&apos;accès se fait sur invitation. Contactez un administrateur pour obtenir votre lien d&apos;inscription.
+          </p>
+        </div>
+      </form>
+    </AuthShell>
   )
 }

@@ -1,303 +1,180 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import AnimatedContent from '../components/AnimatedContent'
-import { Button } from '../components/ui/button'
-import { register as registerRequest } from '../services/authService'
-import { ApiError, type UserRole } from '../types/auth'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, CheckCircle2, Loader2, Lock, Mail, Phone, User } from 'lucide-react'
+import AuthShell from '@/components/auth/AuthShell'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { acceptInvitation, getInvitation } from '../services/authService'
+import { ApiError, type InvitationInfo } from '../types/auth'
 import { roleLabel } from '../auth/roles'
 
-function IconUser(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
-      />
-      <circle cx="9" cy="7" r="4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function IconPhone(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M22 16.92v.1a2.01 2.01 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.09 4.18 2.01 2.01 0 0 1 4.11 2h.1a2 2 0 0 1 2 1.72c.13.92.38 1.82.74 2.68a2 2 0 0 1-.45 2.11L6.1 9.9a16 16 0 0 0 8 8l1.39-1.39a2 2 0 0 1 2.11-.45c.86.36 1.76.61 2.68.74a2 2 0 0 1 1.72 2Z"
-      />
-    </svg>
-  )
-}
-
-function IconLock(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <rect x="4.5" y="11" width="15" height="10" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 11V7.5a4.5 4.5 0 0 1 9 0V11" />
-    </svg>
-  )
-}
-
-function IconGoogle(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.2c0-.7-.1-1.4-.3-2H12v4.1h5.1c-.2 1.1-.8 2-1.7 2.6v2.7h2.8c1.6-1.5 2.5-3.7 2.5-6.5Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 22c2.3 0 4.2-.8 5.6-2.2l-2.8-2.7c-.7.5-1.7.8-2.8.8-2.1 0-3.9-1.4-4.6-3.3H4.5v2.8C5.9 20.4 8.7 22 12 22Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.4 14.6c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9V8H4.5C3.8 9.3 3.4 10.6 3.4 12.7S3.8 16 4.5 17.2l2.9-2.6Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.3c1.3 0 2.4.4 3.3 1.2l2.5-2.5C16.2 3.7 14.3 3 12 3 8.7 3 5.9 4.6 4.5 7l2.9 2.3c.7-1.9 2.5-3 4.6-3Z" />
-    </svg>
-  )
-}
-
-function IconFacebook(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14 9h3V6h-3c-1.7 0-3 1.3-3 3v2H8v3h3v9h3v-9h3l1-3h-4V9c0-.6.4-1 1-1Z" />
-    </svg>
-  )
-}
-
-function IconApple(props: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={props.className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 13.1c0 3-2.1 5.6-4.8 5.6-1 0-1.8-.3-2.7-.9-.9.6-1.7.9-2.7.9C3.6 18.7 1.5 16.1 1.5 13.1c0-2.8 1.8-4.4 3.5-4.4 1.1 0 2.1.6 2.7 1.2.6-.6 1.6-1.2 2.7-1.2 1.7 0 3.1 1.1 3.6 2.2" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14.8 2.5c.1 1.4-.5 2.6-1.4 3.5-1 .9-2.2 1.3-3.4 1.2-.1-1.3.5-2.5 1.4-3.4.9-.9 2.1-1.5 3.4-1.3Z" />
-    </svg>
-  )
-}
-
-const ROLES: UserRole[] = ['DRIVER', 'INVESTOR', 'ADMIN']
-
+/** Inscription réservée aux personnes invitées par un administrateur (lien reçu par email). */
 export default function InscriptionPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+
+  const [invitation, setInvitation] = useState<InvitationInfo | null>(null)
+  const [loading, setLoading] = useState(Boolean(token))
+  const [loadError, setLoadError] = useState<string | null>(
+    token ? null : "L'inscription est uniquement possible sur invitation d'un administrateur.",
+  )
+
   const [nom, setNom] = useState('')
   const [telephone, setTelephone] = useState('')
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<UserRole>('DRIVER')
   const [motDePasse, setMotDePasse] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // ── Dark mode (partagé avec les pages connectées) ──────────────────────
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('theme')
-    if (saved === 'light' || saved === 'dark') return saved
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
-
   useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') root.classList.add('dark')
-    else root.classList.remove('dark')
-    localStorage.setItem('theme', theme)
-  }, [theme])
+    if (!token) return
+    let cancelled = false
+    getInvitation(token)
+      .then((info) => {
+        if (!cancelled) setInvitation(info)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setLoadError(
+          err instanceof ApiError && err.statusCode === 410
+            ? 'Cette invitation a expiré. Demandez-en une nouvelle à un administrateur.'
+            : err instanceof ApiError && err.statusCode === 404
+              ? 'Invitation introuvable ou déjà utilisée.'
+              : "Impossible de vérifier l'invitation. Vérifiez que le serveur est démarré.",
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
-  const canSubmit = useMemo(() => {
-    return nom.trim().length > 0 && telephone.trim().length > 0 && motDePasse.trim().length >= 6
-  }, [nom, telephone, motDePasse])
+  const canSubmit = useMemo(
+    () => nom.trim().length > 0 && telephone.trim().length > 0 && motDePasse.trim().length >= 6,
+    [nom, telephone, motDePasse],
+  )
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!token || !canSubmit || isSubmitting) return
+
+    setError(null)
+    setSuccess(null)
+    setIsSubmitting(true)
+    try {
+      await acceptInvitation({
+        token,
+        fullName: nom.trim(),
+        phoneNumber: telephone.trim(),
+        password: motDePasse,
+      })
+      setSuccess('Compte créé avec succès. Vous pouvez vous connecter.')
+      setTimeout(() => navigate('/connexion'), 1200)
+    } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 409) {
+        setError('Ce numéro de téléphone ou cet email est déjà utilisé.')
+      } else if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('Impossible de créer le compte. Vérifiez que le serveur est démarré.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-6 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
-      <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-xl dark:bg-slate-900">
+    <AuthShell
+      title="Créer mon compte"
+      subtitle="Finalisez votre inscription à CamerRideShare."
+      panelTitle="Déjà un compte ?"
+      panelText="Connectez-vous pour retrouver votre espace et suivre votre activité."
+      panelAction={
+        <Button type="button" variant="outline" className="border-white/40 bg-transparent px-8 text-white hover:bg-white/10 hover:text-white" onClick={() => navigate('/connexion')}>
+          Connexion
+        </Button>
+      }
+    >
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Vérification de l&apos;invitation…
+        </div>
+      ) : loadError || !invitation ? (
+        <div className="grid gap-4">
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertDescription>{loadError}</AlertDescription>
+          </Alert>
+          <Button type="button" variant="outline" onClick={() => navigate('/connexion')}>
+            Aller à la connexion
+          </Button>
+        </div>
+      ) : (
+        <form className="grid gap-4" onSubmit={onSubmit}>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {success ? (
+            <Alert>
+              <CheckCircle2 />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        <button
-          type="button"
-          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded border border-slate-200 bg-white/70 text-slate-900 backdrop-blur transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-50 dark:hover:bg-slate-800/60"
-          aria-label="Toggle dark mode"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="h-5 w-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A8.5 8.5 0 0 1 11.2 3a6.9 6.9 0 1 0 9.8 9.8Z" />
-          </svg>
-        </button>
+          <div className="grid gap-2">
+            <Label htmlFor="reg-email">Email</Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="reg-email" className="pl-10" value={invitation.email} readOnly disabled />
+            </div>
+            <p className="text-xs text-muted-foreground">Compte {roleLabel(invitation.role).toLowerCase()}</p>
+          </div>
 
-        <div className="flex flex-col md:flex-row">
-          {/* Colonne gauche : formulaire */}
-          <AnimatedContent className="w-full md:w-1/2"><div className="w-full p-8 md:p-12">
-            <img src="/logo.png" alt="CamerRideShare" className="mx-auto mb-6 h-48 w-auto" />
-            <h2 className="text-center text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Inscription
-            </h2>
-            <p className="mt-3 text-center text-sm text-slate-600 dark:text-slate-300">
-              Rejoignez la communauté CamerRideShare dès aujourd’hui !
-            </p>
-
-            <form
-              className="mt-8 flex flex-col gap-4"
-              onSubmit={async (e) => {
-                e.preventDefault()
-                if (!canSubmit || isSubmitting) return
-
-                setError(null)
-                setSuccess(null)
-                setIsSubmitting(true)
-
-                try {
-                  await registerRequest({
-                    phoneNumber: telephone.trim(),
-                    password: motDePasse,
-                    fullName: nom.trim(),
-                    role,
-                    email: email.trim() || undefined,
-                  })
-                  setSuccess('Compte créé avec succès. Vous pouvez vous connecter.')
-                  setTimeout(() => navigate('/connexion'), 1200)
-                } catch (err) {
-                  if (err instanceof ApiError && err.statusCode === 409) {
-                    setError('Ce numéro de téléphone ou cet email est déjà utilisé.')
-                  } else if (err instanceof ApiError) {
-                    setError(err.message)
-                  } else {
-                    setError("Impossible de créer le compte. Vérifiez que le serveur est démarré.")
-                  }
-                } finally {
-                  setIsSubmitting(false)
-                }
-              }}
-            >
-              {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-                  {error}
-                </div>
-              ) : null}
-              {success ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
-                  {success}
-                </div>
-              ) : null}
-              <label className="flex flex-col gap-2">
-                <span className="sr-only">Nom complet</span>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <IconUser className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                  <input
-                    value={nom}
-                    onChange={(e) => setNom(e.target.value)}
-                    placeholder="Nom complet"
-                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                  />
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span className="sr-only">Numéro de téléphone</span>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <IconPhone className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                  <input
-                    value={telephone}
-                    onChange={(e) => setTelephone(e.target.value)}
-                    placeholder="Numéro de téléphone"
-                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                  />
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email (optionnel)</span>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@exemple.com"
-                    type="email"
-                    autoComplete="email"
-                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                  />
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Rôle</span>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50"
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {roleLabel(r)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-2">
-                <span className="sr-only">Mot de passe</span>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-                  <IconLock className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-                  <input
-                    value={motDePasse}
-                    onChange={(e) => setMotDePasse(e.target.value)}
-                    placeholder="Mot de passe (min. 6 caractères)"
-                    type="password"
-                    autoComplete="new-password"
-                    className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none dark:text-slate-50 dark:placeholder:text-slate-400"
-                  />
-                </div>
-              </label>
-
-              <Button
-                type="submit"
-                disabled={!canSubmit || isSubmitting}
-                className="mt-2 rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-blue-700 disabled:text-white disabled:opacity-100 dark:bg-blue-900 dark:hover:bg-blue-800 dark:disabled:bg-blue-900"
-              >
-                {isSubmitting ? 'Inscription…' : "S'inscrire"}
-              </Button>
-
-              <div className="mt-1 text-center text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-300">
-                OU CONTINUER AVEC
-              </div>
-
-              <div className="mt-3 flex items-center justify-center gap-4">
-                <Button
-                  type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  <IconGoogle className="h-5 w-5" />
-                </Button>
-                <Button
-                  type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  <IconFacebook className="h-5 w-5" />
-                </Button>
-                <Button
-                  type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  <IconApple className="h-5 w-5" />
-                </Button>
-              </div>
-            </form>
-          </div></AnimatedContent>
-
-          {/* Colonne droite : CTA */}
-          <div className="relative w-full overflow-hidden bg-blue-700 p-8 text-white shadow-xl shadow-blue-900/25 rounded-2xl md:w-1/2 md:p-12 md:rounded-tl-[4.5rem] md:rounded-bl-[4.5rem] md:rounded-tr-2xl md:rounded-br-2xl dark:bg-blue-900">
-            {/* Décor : cercles translucides à l’intérieur du panneau bleu */}
-            <div className="pointer-events-none absolute -top-20 -right-24 z-0 h-80 w-80 rounded-full bg-blue-900/20 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-20 z-0 h-80 w-80 rounded-full bg-blue-900/15 blur-2xl" />
-
-            <div className="relative z-10 flex h-full flex-col justify-center">
-              <h3 className="text-center text-3xl font-bold">Bon retour !</h3>
-              <p className="mt-4 text-center text-sm leading-relaxed opacity-90">
-                Vous avez déjà un compte ? Connectez-vous pour continuer à partager vos trajets.
-              </p>
-              <div className="mt-8 flex justify-center">
-                <Button
-                  type="button"
-                  className="rounded-full border-2 border-white bg-transparent px-10 py-2 text-sm font-semibold text-white hover:bg-white/10"
-                  onClick={() => navigate('/connexion')}
-                >
-                  Connexion
-                </Button>
-              </div>
+          <div className="grid gap-2">
+            <Label htmlFor="reg-name">Nom complet</Label>
+            <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="reg-name" className="pl-10" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom complet" />
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="reg-phone">Numéro de téléphone</Label>
+            <div className="relative">
+              <Phone className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="reg-phone" className="pl-10" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="6XX XXX XXX" autoComplete="tel" />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="reg-password">Mot de passe</Label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="reg-password" className="pl-10" type="password" value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} placeholder="Min. 6 caractères" autoComplete="new-password" />
+            </div>
+          </div>
+
+          <Button type="submit" size="lg" disabled={!canSubmit || isSubmitting || Boolean(success)}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Création…
+              </>
+            ) : (
+              'Créer mon compte'
+            )}
+          </Button>
+        </form>
+      )}
+    </AuthShell>
   )
 }
-

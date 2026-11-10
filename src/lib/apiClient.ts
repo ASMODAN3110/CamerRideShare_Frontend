@@ -41,11 +41,24 @@ async function parseErrorResponse(res: Response): Promise<ApiError> {
   return new ApiError(res.status, body)
 }
 
+/** Télécharge un fichier (PDF…) : l'appel est authentifié par le jeton, un simple lien ne le serait pas. */
+export async function apiDownload(path: string): Promise<{ blob: Blob; filename: string | null }> {
+  const token = authHandlers.getToken()
+  const res = await fetch(`${getBaseUrl()}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (res.status === 401) {
+    authHandlers.onUnauthorized()
+    throw await parseErrorResponse(res)
+  }
+  if (!res.ok) throw await parseErrorResponse(res)
+  const match = /filename="?([^";]+)"?/i.exec(res.headers.get('Content-Disposition') ?? '')
+  return { blob: await res.blob(), filename: match ? match[1] : null }
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = authHandlers.getToken()
   const headers = new Headers(options.headers)
 
-  if (!headers.has('Content-Type') && options.body) {
+  if (!headers.has('Content-Type') && options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
 

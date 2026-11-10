@@ -7,7 +7,7 @@ export default function CatchAllRedirect() {
 
   if (isHydrating) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+      <div className="flex min-h-screen items-center justify-center bg-muted text-sm text-muted-foreground ">
         Chargement…
       </div>
     )

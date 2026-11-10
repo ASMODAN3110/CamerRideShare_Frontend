@@ -8,6 +8,8 @@ export type AuthContextValue = {
   isHydrating: boolean
   login: (accessToken: string, user: User) => void
   logout: () => void
+  /** Met à jour l'utilisateur connecté (nom, e-mail, photo) après une modification de profil. */
+  updateUser: (patch: Partial<User>) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

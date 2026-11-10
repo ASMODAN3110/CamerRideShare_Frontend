@@ -50,6 +50,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextUser)
   }, [])
 
+  const updateUser = useCallback((patch: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev
+      const next = { ...prev, ...patch }
+      localStorage.setItem(USER_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     setApiAuthHandlers({
       getToken: () => localStorage.getItem(TOKEN_KEY),
@@ -71,8 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isHydrating,
       login,
       logout,
+      updateUser,
     }),
-    [accessToken, user, isHydrating, login, logout],
+    [accessToken, user, isHydrating, login, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
