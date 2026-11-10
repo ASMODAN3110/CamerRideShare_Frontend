@@ -1,5 +1,6 @@
 import { apiRequest } from '../lib/apiClient'
 import type {
+  AdminInvestorProfile,
   InvestorsRoiTrend,
   InvestorsSummary,
   ListAdminInvestorsParams,
@@ -28,6 +29,11 @@ export function getInvestorsSummary(): Promise<InvestorsSummary> {
 /** GET /admin/investors — liste paginée (JWT + ADMIN). */
 export function listAdminInvestors(params: ListAdminInvestorsParams = {}): Promise<PaginatedAdminInvestors> {
   return apiRequest<PaginatedAdminInvestors>(`/admin/investors${buildInvestorsQuery(params)}`)
+}
+
+/** GET /admin/investors/:id — profil complet d'un investisseur (JWT + ADMIN). */
+export function getAdminInvestorProfile(id: number): Promise<AdminInvestorProfile> {
+  return apiRequest<AdminInvestorProfile>(`/admin/investors/${id}`)
 }
 
 /** GET /admin/investors/roi-trend — série ROI mensuelle (JWT + ADMIN). */

@@ -4,9 +4,8 @@ export const INVESTOR_STATUS_UI: Record<
   AdminInvestorStatus,
   { label: string; variant: 'green' | 'orange' | 'red'; dot: string }
 > = {
-  ACTIVE: { label: 'Actif', variant: 'green', dot: 'bg-emerald-500' },
-  LATE: { label: 'En retard', variant: 'orange', dot: 'bg-orange-500' },
-  INACTIVE: { label: 'Inactif', variant: 'red', dot: 'bg-red-500' },
+  ACTIVE: { label: 'Actif', variant: 'green', dot: 'bg-primary' },
+  INACTIVE: { label: 'Inactif', variant: 'red', dot: 'bg-muted-foreground' },
 }
 
 /** "janv. 2023" from ISO date */
