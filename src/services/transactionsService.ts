@@ -12,6 +12,7 @@ function buildTransactionsQuery(params: ListTransactionsParams = {}): string {
   if (params.search?.trim()) qs.set('search', params.search.trim())
   if (params.status) qs.set('status', params.status)
   if (params.type) qs.set('type', params.type)
+  if (params.method) qs.set('method', params.method)
   const query = qs.toString()
   return query ? `?${query}` : ''
 }

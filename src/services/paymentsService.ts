@@ -17,10 +17,10 @@ export function getPayment(id: number): Promise<PaymentDetail> {
 }
 
 /** PATCH /payments/:id — valider ou remettre en attente (JWT + ADMIN). */
-export function updatePaymentStatus(id: number, status: PaymentStatus): Promise<PaymentDetail> {
+export function updatePaymentStatus(id: number, status: PaymentStatus, note?: string): Promise<PaymentDetail> {
   return apiRequest<PaymentDetail>(`/payments/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, note: note?.trim() || undefined }),
   })
 }
 

@@ -1,70 +1,18 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { PaymentMethodBadge } from './PaymentMethodSelect'
+import { useEffect, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
 import { getPayment, updatePaymentStatus } from '../services/paymentsService'
 import { formatShortDate, formatXaf, initials } from '../lib/format'
 import { PAYMENT_STATUS_UI, PAYMENT_TYPE_UI, amountColorClass, amountSign } from '../lib/payments'
 import { ApiError } from '../types/auth'
 import type { PaymentDetail, PaymentStatus } from '../types/api'
-
-// ─── Modal wrapper ──────────────────────────────────────────────────────────
-
-interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  children: ReactNode
-}
-
-function Modal({ isOpen, onClose, title, children }: ModalProps) {
-  useEffect(() => {
-    if (!isOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [isOpen, onClose])
-
-  if (!isOpen) return null
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="payment-modal-title"
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <h2 id="payment-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>,
-    document.body,
-  )
-}
-
-// ─── PaymentDetailModal ─────────────────────────────────────────────────────
 
 interface PaymentDetailModalProps {
   paymentId: number | null
@@ -78,32 +26,36 @@ export function PaymentDetailModal({ paymentId, isOpen, onClose, onSuccess }: Pa
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rejecting, setRejecting] = useState(false)
+  const [note, setNote] = useState('')
 
   useEffect(() => {
     if (!isOpen || paymentId == null) return
     setPayment(null)
     setError(null)
+    setRejecting(false)
+    setNote('')
     setLoading(true)
     getPayment(paymentId)
       .then(setPayment)
       .catch((err: unknown) => {
-        const msg = err instanceof ApiError ? err.message : 'Erreur chargement du paiement'
-        setError(msg)
+        setError(err instanceof ApiError ? err.message : 'Erreur chargement du paiement')
       })
       .finally(() => setLoading(false))
   }, [isOpen, paymentId])
 
-  const handleStatusChange = async (status: PaymentStatus) => {
+  const handleStatusChange = async (status: PaymentStatus, reason?: string) => {
     if (paymentId == null) return
     setSubmitting(true)
     setError(null)
     try {
-      const updated = await updatePaymentStatus(paymentId, status)
+      const updated = await updatePaymentStatus(paymentId, status, reason)
       setPayment(updated)
+      setRejecting(false)
+      setNote('')
       onSuccess()
     } catch (err: unknown) {
-      const msg = err instanceof ApiError ? err.message : 'Erreur lors de la mise à jour'
-      setError(msg)
+      setError(err instanceof ApiError ? err.message : 'Erreur lors de la mise à jour')
     } finally {
       setSubmitting(false)
     }
@@ -113,117 +65,165 @@ export function PaymentDetailModal({ paymentId, isOpen, onClose, onSuccess }: Pa
   const statusUi = payment ? PAYMENT_STATUS_UI[payment.status] : null
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Détail du paiement">
-      {loading ? (
-        <p className="py-8 text-center text-sm text-slate-500">Chargement…</p>
-      ) : payment ? (
-        <div className="space-y-5">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-12 w-12">
-              {payment.driver.avatarUrl ? (
-                <AvatarImage
-                  src={payment.driver.avatarUrl}
-                  alt={payment.driver.fullName}
-                  className="h-full w-full object-cover"
-                />
-              ) : null}
-              <AvatarFallback>{initials(payment.driver.fullName)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="font-semibold text-slate-900 dark:text-slate-50">{payment.driver.fullName}</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{payment.driver.phoneNumber}</div>
-            </div>
-          </div>
+    <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Détail du paiement</DialogTitle>
+          <DialogDescription>Consultez la transaction et modifiez son statut.</DialogDescription>
+        </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/30">
-            <div>
-              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Montant</div>
-              <div className={`mt-1 text-lg font-bold ${amountColorClass(payment.type)}`}>
-                {amountSign(payment.type)} {formatXaf(payment.amount)} XAF
+        {loading ? (
+          <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </div>
+        ) : payment ? (
+          <div className="space-y-5">
+            <div className="flex items-center gap-4">
+              <Avatar className="size-12">
+                {payment.driver.avatarUrl ? <AvatarImage src={payment.driver.avatarUrl} alt={payment.driver.fullName} /> : null}
+                <AvatarFallback>{initials(payment.driver.fullName)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="font-semibold">{payment.driver.fullName}</div>
+                <div className="text-sm text-muted-foreground">{payment.driver.phoneNumber}</div>
               </div>
             </div>
-            <div>
-              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Date</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                {formatShortDate(payment.createdAt)}
+
+            <div className="grid grid-cols-1 gap-3 rounded-md border bg-muted/40 p-3 min-[400px]:grid-cols-2 sm:gap-4 sm:p-4">
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">Montant</div>
+                <div className={`mt-1 text-lg font-bold tabular-nums ${amountColorClass(payment.type)}`}>
+                  {amountSign(payment.type)} {formatXaf(payment.amount)} XAF
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">Date</div>
+                <div className="mt-1 text-sm font-semibold">{formatShortDate(payment.createdAt)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">Type</div>
+                <div className="mt-1.5">
+                  {typeUi ? <Badge variant={typeUi.variant === 'red' ? 'red' : 'secondary'}>{typeUi.label}</Badge> : null}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">Moyen de paiement</div>
+                <div className="mt-1.5" data-testid="detail-method">
+                  <PaymentMethodBadge method={payment.method} />
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">Statut</div>
+                <div className="mt-1.5">{statusUi ? <Badge variant={statusUi.variant}>{statusUi.label}</Badge> : null}</div>
               </div>
             </div>
-            <div>
-              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Type</div>
-              <div className="mt-1.5">
-                {typeUi ? (
-                  <Badge variant={typeUi.variant === 'red' ? 'red' : 'default'} className="px-2.5 py-1">
-                    {typeUi.label}
-                  </Badge>
+
+            {payment.proofUrl ? (
+              <div className="rounded-md border p-3 text-sm" data-testid="detail-proof">
+                <div className="text-xs font-medium text-muted-foreground">Preuve de paiement jointe par le chauffeur</div>
+                <a href={payment.proofUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block overflow-hidden rounded-md border">
+                  <img src={payment.proofUrl} alt="Preuve de paiement" className="max-h-64 w-full object-contain bg-muted/40" />
+                </a>
+              </div>
+            ) : null}
+
+            {payment.status === 'REJECTED' && payment.note ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                <div className="text-xs font-medium text-muted-foreground">Motif du refus</div>
+                <div className="mt-1">{payment.note}</div>
+              </div>
+            ) : null}
+
+            {rejecting ? (
+              <div className="grid gap-2">
+                <label htmlFor="reject-payment-note" className="text-sm font-medium">
+                  Motif du refus <span className="font-normal text-muted-foreground">(optionnel, communiqué au chauffeur)</span>
+                </label>
+                <Textarea id="reject-payment-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={300} />
+              </div>
+            ) : null}
+
+            {payment.distribution ? (
+              <div className="grid gap-2 rounded-md border p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Répartition du versement</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {payment.distribution.weekStatus === 'PARTIAL' ? <Badge variant="orange">Partiel · +1 semaine</Badge> : null}
+                    {payment.distribution.rahimApplied ? <Badge variant="red">Clause Rahim</Badge> : null}
+                  </div>
+                </div>
+                <ul className="divide-y text-sm">
+                  {payment.distribution.investors.map((i) => (
+                    <li key={i.investorId ?? i.fullName} className="flex items-center justify-between py-1.5">
+                      <span>{i.fullName || 'Investisseur'}</span>
+                      <span className="font-semibold tabular-nums">{formatXaf(i.amount)} XAF</span>
+                    </li>
+                  ))}
+                  <li className="flex items-center justify-between py-1.5 text-muted-foreground">
+                    <span>Commission admin (parts invendues, excédent)</span>
+                    <span className="font-semibold tabular-nums">{formatXaf(payment.distribution.commission)} XAF</span>
+                  </li>
+                </ul>
+                {payment.distribution.rahimApplied ? (
+                  <p className="text-xs text-muted-foreground">
+                    Le versement ne couvrait pas le dû des investisseurs : ils reçoivent 100 % du montant, l&apos;admin 0.
+                  </p>
                 ) : null}
               </div>
-            </div>
-            <div>
-              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Statut</div>
-              <div className="mt-1.5">
-                {statusUi ? (
-                  <Badge variant={statusUi.variant} className="gap-1.5 px-2.5 py-1">
-                    <span className={['h-2 w-2 rounded-full', statusUi.dot].join(' ')} />
-                    {statusUi.label}
-                  </Badge>
-                ) : null}
-              </div>
-            </div>
-          </div>
+            ) : null}
 
-          {error ? (
-            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-200">
-              {error}
-            </div>
-          ) : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertTriangle />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
-          <div className="flex gap-3 pt-1">
-            <Button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              Fermer
-            </Button>
-            {payment.status === 'PENDING' ? (
-              <Button
-                type="button"
-                disabled={submitting}
-                onClick={() => void handleStatusChange('VERIFIED')}
-                className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
-              >
-                {submitting ? 'Validation…' : 'Valider'}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Fermer
               </Button>
+              {payment.status === 'PENDING' ? (
+                <>
+                  {rejecting ? (
+                    <Button type="button" variant="destructive" disabled={submitting} onClick={() => void handleStatusChange('REJECTED', note)}>
+                      {submitting ? 'Refus…' : 'Confirmer le refus'}
+                    </Button>
+                  ) : (
+                    <Button type="button" variant="outline" disabled={submitting} onClick={() => setRejecting(true)}>
+                      Refuser
+                    </Button>
+                  )}
+                  <Button type="button" disabled={submitting} onClick={() => void handleStatusChange('VERIFIED')}>
+                    {submitting ? 'Validation…' : 'Valider'}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" variant="secondary" disabled={submitting} onClick={() => void handleStatusChange('PENDING')}>
+                  {submitting ? 'Mise à jour…' : 'Remettre en attente'}
+                </Button>
+              )}
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {error ? (
+              <Alert variant="destructive">
+                <AlertTriangle />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             ) : (
-              <Button
-                type="button"
-                disabled={submitting}
-                onClick={() => void handleStatusChange('PENDING')}
-                className="flex-1 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
-              >
-                {submitting ? 'Mise à jour…' : 'Remettre en attente'}
-              </Button>
+              <p className="py-8 text-center text-sm text-muted-foreground">Paiement introuvable.</p>
             )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Fermer
+              </Button>
+            </DialogFooter>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {error ? (
-            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-200">
-              {error}
-            </div>
-          ) : (
-            <p className="py-8 text-center text-sm text-slate-500">Paiement introuvable.</p>
-          )}
-          <Button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            Fermer
-          </Button>
-        </div>
-      )}
-    </Modal>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

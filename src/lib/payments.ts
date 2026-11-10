@@ -2,10 +2,11 @@ import type { PaymentStatus, PaymentType } from '../types/api'
 
 export const PAYMENT_STATUS_UI: Record<
   PaymentStatus,
-  { label: string; variant: 'green' | 'orange'; dot: string }
+  { label: string; variant: 'green' | 'orange' | 'red'; dot: string }
 > = {
-  VERIFIED: { label: 'Validé', variant: 'green', dot: 'bg-emerald-500' },
-  PENDING: { label: 'En attente', variant: 'orange', dot: 'bg-orange-500' },
+  VERIFIED: { label: 'Validé', variant: 'green', dot: 'bg-primary' },
+  PENDING: { label: 'En attente', variant: 'orange', dot: 'bg-warning' },
+  REJECTED: { label: 'Refusé', variant: 'red', dot: 'bg-destructive' },
 }
 
 export const PAYMENT_TYPE_UI: Record<PaymentType, { label: string; variant: 'default' | 'red' }> = {
@@ -19,6 +20,6 @@ export function amountSign(type: PaymentType): '+' | '-' {
 
 export function amountColorClass(type: PaymentType): string {
   return type === 'EXPENSE'
-    ? 'text-red-600 dark:text-red-400'
-    : 'text-slate-900 dark:text-slate-50'
+    ? 'text-danger-foreground'
+    : 'text-foreground'
 }

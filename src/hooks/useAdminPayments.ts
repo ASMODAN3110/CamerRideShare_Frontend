@@ -5,6 +5,7 @@ import { ApiError } from '../types/auth'
 import type {
   ListTransactionsParams,
   PaginationMeta,
+  PaymentMethod,
   PaymentStatus,
   PaymentType,
   PaymentsSummary,
@@ -25,6 +26,7 @@ export type AdminPaymentsFilters = {
   search: string
   status: PaymentStatus | ''
   type: PaymentType | ''
+  method: PaymentMethod | ''
 }
 
 const defaultFilters: AdminPaymentsFilters = {
@@ -32,6 +34,7 @@ const defaultFilters: AdminPaymentsFilters = {
   search: '',
   status: '',
   type: '',
+  method: '',
 }
 
 function toListParams(filters: AdminPaymentsFilters): ListTransactionsParams {
@@ -42,6 +45,7 @@ function toListParams(filters: AdminPaymentsFilters): ListTransactionsParams {
     search: filters.search.trim() || undefined,
     status: filters.status || undefined,
     type: filters.type || undefined,
+    method: filters.method || undefined,
   }
 }
 
@@ -129,6 +133,15 @@ export function useAdminPayments() {
     [refreshList],
   )
 
+  const setMethodFilter = useCallback(
+    (method: PaymentMethod | '') => {
+      const next = { ...filtersRef.current, method, page: 1 }
+      setFilters(next)
+      void refreshList(next)
+    },
+    [refreshList],
+  )
+
   const searchDebounceReady = useRef(false)
   useEffect(() => {
     if (!searchDebounceReady.current) {
@@ -156,5 +169,6 @@ export function useAdminPayments() {
     setSearch,
     setStatusFilter,
     setTypeFilter,
+    setMethodFilter,
   }
 }
