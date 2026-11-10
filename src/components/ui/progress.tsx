@@ -1,20 +1,28 @@
-import type { HTMLAttributes } from 'react'
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Progress as ProgressPrimitive } from "radix-ui"
 
-type ProgressProps = HTMLAttributes<HTMLDivElement> & {
-  value: number
-}
-
-export function Progress(props: ProgressProps) {
-  const { value, className, ...rest } = props
-  const clamped = Math.max(0, Math.min(100, value))
-
+function Progress({
+  className,
+  value,
+  ...props
+}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
   return (
-    <div
-      className={['h-3 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800/60', className].filter(Boolean).join(' ')}
-      {...rest}
+    <ProgressPrimitive.Root
+      data-slot="progress"
+      className={cn(
+        "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+        className
+      )}
+      {...props}
     >
-      <div className="h-full bg-blue-600" style={{ width: `${clamped}%` }} />
-    </div>
+      <ProgressPrimitive.Indicator
+        data-slot="progress-indicator"
+        className="h-full w-full flex-1 bg-primary transition-all"
+        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+      />
+    </ProgressPrimitive.Root>
   )
 }
 
+export { Progress }

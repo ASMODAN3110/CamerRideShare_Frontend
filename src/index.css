@@ -1,66 +1,177 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+  Palette tirée du logo CamerRideShare :
+  vert #148664 · jaune #F0CA1D · rouge #D73038 · bleu nuit #121534
+  Le thème sombre/clair est piloté par la classe `dark` sur <html>.
+*/
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #111827;
-  --link: #4f46e5;
-  --link-hover: #4338ca;
-  --muted: #6b7280;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --radius: 0.5rem;
+
+  --background: #f4f5f7;
+  --foreground: #121534;
+  --card: #ffffff;
+  --card-foreground: #121534;
+  --popover: #ffffff;
+  --popover-foreground: #121534;
+  --primary: #148664;
+  --primary-foreground: #ffffff;
+  --secondary: #e8e9f2;
+  --secondary-foreground: #121534;
+  --muted: #eceef3;
+  --muted-foreground: #5b6082;
+  --accent: #e3f3ed;
+  --accent-foreground: #0d6a4e;
+  --destructive: #d73038;
+  --border: #e3e5ec;
+  --input: #e3e5ec;
+  --ring: #148664;
+
+  --success: #148664;
+  --success-foreground: #0d6a4e;
+  --warning: #f0ca1d;
+  --warning-foreground: #6b5200;
+  --danger-foreground: #b3202a;
+
+  --chart-1: #148664;
+  --chart-2: #f0ca1d;
+  --chart-3: #d73038;
+  --chart-4: #121534;
+  --chart-5: #5fd6b0;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #121534;
+  --sidebar-primary: #148664;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(20, 134, 100, 0.1);
+  --sidebar-accent-foreground: #0d6a4e;
+  --sidebar-border: #e3e5ec;
+  --sidebar-ring: #148664;
+
+  /* Alias historiques (anciennes pages) */
+  --bg: var(--background);
+  --fg: var(--foreground);
+  --link: #148664;
+  --link-hover: #0d6a4e;
 }
 
 .dark {
-  --bg: #0f172a;
-  --fg: #e5e7eb;
-  --link: #818cf8;
-  --link-hover: #a5b4fc;
-  --muted: #94a3b8;
+  --background: #0a0c20;
+  --foreground: #eef0fa;
+  --card: #121534;
+  --card-foreground: #eef0fa;
+  --popover: #121534;
+  --popover-foreground: #eef0fa;
+  --primary: #1fa67e;
+  --primary-foreground: #04120d;
+  --secondary: #23275a;
+  --secondary-foreground: #eef0fa;
+  --muted: #1b1f4a;
+  --muted-foreground: #a3a9cf;
+  --accent: #16382f;
+  --accent-foreground: #6fe0bb;
+  --destructive: #ef5a61;
+  --border: #262a5c;
+  --input: #262a5c;
+  --ring: #1fa67e;
+
+  --success: #1fa67e;
+  --success-foreground: #6fe0bb;
+  --warning: #f0ca1d;
+  --warning-foreground: #f0ca1d;
+  --danger-foreground: #ff9aa0;
+
+  --chart-1: #1fa67e;
+  --chart-2: #f0ca1d;
+  --chart-3: #ef5a61;
+  --chart-4: #8f96d6;
+  --chart-5: #5fd6b0;
+
+  --sidebar: #121534;
+  --sidebar-foreground: #eef0fa;
+  --sidebar-primary: #1fa67e;
+  --sidebar-primary-foreground: #04120d;
+  --sidebar-accent: rgba(31, 166, 126, 0.16);
+  --sidebar-accent-foreground: #6fe0bb;
+  --sidebar-border: #262a5c;
+  --sidebar-ring: #1fa67e;
+
+  --link: #6fe0bb;
+  --link-hover: #a5f0d6;
 }
 
-a {
-  font-weight: 500;
-  color: var(--link);
-  text-decoration: inherit;
-}
-a:hover {
-  color: var(--link-hover);
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger-foreground: var(--danger-foreground);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--fg);
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
 }
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: var(--link);
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-/* Le thème sombre/blanc est piloté uniquement par la classe `dark` sur <html>. */
