@@ -1,28 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { ChevronRight, Filter, Search, ShieldAlert, Wrench } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Filter, RefreshCw, Search, ShieldAlert, Wrench } from 'lucide-react'
 
-import InvestorSidebar from '../../components/InvestorSidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
+import { Alert, AlertDescription } from '../../components/ui/alert'
 import { Badge } from '../../components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
-import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
-
-type MotoStatus = 'actif' | 'panne' | 'indisponible'
-
-type Moto = {
-  id: string
-  chauffeur: string
-  plaque: string
-  status: MotoStatus
-  semaineAcquise: number
-  semaineTotal: number
-  revenuMois: number // XAF
-  avatarUrl?: string
-  avatarFallback: string
-  zone?: string
-  isRecent?: boolean
-}
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Progress } from '../../components/ui/progress'
+import { Skeleton } from '../../components/ui/skeleton'
+import PortalLayout from '../../components/admin/AdminLayout'
+import InvestorMotoDetailModal from '../../components/InvestorMotoDetailModal'
+import InvestorPartContract from '../../components/InvestorPartContract'
+import { formatXafLabel } from '../../lib/format'
+import { VEHICLE_TYPE_LABEL } from '../../lib/vehicles'
+import { getInvestorFleet } from '../../services/investorService'
+import type { InvestorFleetItem, InvestorFleetResponse, InvestorMotoStatus } from '../../types/api'
 
 type TabKey = 'all' | 'circulation' | 'maintenance'
 
@@ -33,87 +28,88 @@ type TabDef = {
   Icon: LucideIcon
 }
 
-function formatXaf(value: number) {
-  return value.toLocaleString('fr-FR')
+const STATUS_LABEL: Record<InvestorMotoStatus, string> = { actif: 'Actif', panne: 'En panne', indisponible: 'Indisponible' }
+
+/** Couleur de la barre d'avancement selon l'état du véhicule (composant Progress de shadcn). */
+const STATUS_BAR: Record<InvestorMotoStatus, string> = {
+  actif: '[&>[data-slot=progress-indicator]]:bg-primary',
+  panne: '[&>[data-slot=progress-indicator]]:bg-warning',
+  indisponible: '[&>[data-slot=progress-indicator]]:bg-muted-foreground/30',
 }
 
-function statusPillClasses(status: MotoStatus) {
-  if (status === 'actif') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
-  if (status === 'panne') return 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200'
-  return 'bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-200'
+function MotoProgress({ status, value }: { status: InvestorMotoStatus; value: number }) {
+  return <Progress value={Math.max(0, Math.min(100, value))} className={`h-2 bg-muted ${STATUS_BAR[status]}`} />
 }
 
-function statusProgressClasses(status: MotoStatus) {
-  if (status === 'actif') return 'bg-emerald-600'
-  if (status === 'panne') return 'bg-orange-500'
-  return 'bg-slate-400'
-}
+const progressOf = (m: InvestorFleetItem) => (m.semaineTotal > 0 ? Math.round((m.semaineAcquise / m.semaineTotal) * 100) : 0)
+const driverName = (m: InvestorFleetItem) => (m.chauffeur === 'Non assigné' ? 'Sans conducteur' : m.chauffeur)
 
-function MotoProgress({ status, value }: { status: MotoStatus; value: number }) {
-  const clamped = Math.max(0, Math.min(100, value))
-  return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200/60 dark:bg-slate-800/50">
-      <div className={`h-full ${statusProgressClasses(status)}`} style={{ width: `${clamped}%` }} />
-    </div>
-  )
-}
-
-function MotoCard({ moto }: { moto: Moto }) {
-  const progressPct = Math.round((moto.semaineAcquise / moto.semaineTotal) * 100)
-  const statusVariant: 'actif' | 'panne' | 'indisponible' = moto.status
-  const label = statusVariant === 'actif' ? 'Actif' : statusVariant === 'panne' ? 'En panne' : 'Indisponible'
-
+function MotoCard({ moto, onOpen }: { moto: InvestorFleetItem; onOpen: (id: string) => void }) {
+  const progressPct = progressOf(moto)
   const statusIcon =
-    moto.status === 'actif' ? <ShieldAlert className="h-3.5 w-3.5 text-emerald-600" /> : moto.status === 'panne' ? <Wrench className="h-3.5 w-3.5 text-orange-600" /> : null
+    moto.status === 'actif' ? <ShieldAlert className="h-3.5 w-3.5 text-success-foreground" /> : moto.status === 'panne' ? <Wrench className="h-3.5 w-3.5 text-warning-foreground" /> : null
+
+  // toute la carte ouvre la fiche, sauf les boutons qu'elle contient (contrats)
+  const openFromCard = (e: MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button, a')) return
+    onOpen(moto.id)
+  }
 
   return (
-    <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-      <CardHeader className="p-5 pb-3">
-        <div className="flex items-start justify-between gap-3">
+    <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={openFromCard} data-testid="fleet-card">
+      <CardHeader>
+        <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Avatar className="h-10 w-10 shrink-0">
-              {moto.avatarUrl ? (
-                <AvatarImage src={moto.avatarUrl} alt={moto.chauffeur} className="h-full w-full object-cover" />
-              ) : (
-                <AvatarFallback>{moto.avatarFallback}</AvatarFallback>
-              )}
+              {moto.avatarUrl ? <AvatarImage src={moto.avatarUrl} alt={moto.chauffeur} className="h-full w-full object-cover" /> : <AvatarFallback>{moto.avatarFallback}</AvatarFallback>}
             </Avatar>
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{moto.chauffeur}</div>
-              <div className="truncate text-xs text-slate-500 dark:text-slate-400">{`Plaque: ${moto.plaque}`}</div>
+              <div className="truncate text-sm font-semibold text-foreground">{driverName(moto)}</div>
+              <div className="truncate text-xs text-muted-foreground">{`${VEHICLE_TYPE_LABEL[moto.vehicleType]} · ${moto.plaque}`}</div>
             </div>
           </div>
 
           <Badge variant={moto.status === 'actif' ? 'green' : moto.status === 'panne' ? 'orange' : 'default'} className="shrink-0">
             <span className="mr-1 inline-flex align-middle">{statusIcon}</span>
-            {label}
+            {STATUS_LABEL[moto.status]}
           </Badge>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 pb-5">
+      <CardContent>
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-xs font-semibold text-slate-500">{`Semaine ${moto.semaineAcquise} / ${moto.semaineTotal}`}</div>
-            <div className="text-xs font-semibold text-slate-500">{progressPct}%</div>
+            <div className="text-xs font-semibold text-muted-foreground">{`Semaine ${moto.semaineAcquise} / ${moto.semaineTotal}`}</div>
+            <div className="text-xs font-semibold text-muted-foreground">{progressPct}%</div>
           </div>
 
-          {/* Bar custom pour matcher le code couleur de l'image */}
           <MotoProgress status={moto.status} value={progressPct} />
 
           <div className="pt-2">
-            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Remboursement</div>
-            <div className="mt-1 text-xs font-semibold text-slate-500">{moto.zone ? `Zone: ${moto.zone}` : 'Calendrier de Remboursement'}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Remboursement</div>
+            <div className="mt-1 text-xs font-semibold text-muted-foreground">{`Zone : ${moto.zone}`}</div>
+            <div className="mt-1 text-xs font-semibold text-muted-foreground">{`Vos parts : ${moto.parts}`}</div>
+            {moto.partList.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {moto.partList.map((part) => (
+                  <InvestorPartContract key={part.id} part={part} />
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-2 text-xs text-muted-foreground">
+              {`Investi ${formatXafLabel(moto.investi)} · retour attendu ${formatXafLabel(moto.retourAttendu)} (${formatXafLabel(moto.parSemaine)} par semaine)`}
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Revenu du mois</div>
-              <div className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-50">{`XAF ${formatXaf(moto.revenuMois)}`}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Revenu du mois</div>
+              <div className="mt-1 text-sm font-bold text-foreground">{formatXafLabel(moto.revenuMois)}</div>
             </div>
-            <div className="flex-none text-slate-500">
-              <ChevronRight className="h-4 w-4 text-blue-600" />
-            </div>
+            <Button type="button" variant="ghost" size="sm" className="shrink-0 text-primary" onClick={() => onOpen(moto.id)} aria-label={`Voir le détail du véhicule ${moto.plaque}`}>
+              Détails
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -121,8 +117,35 @@ function MotoCard({ moto }: { moto: Moto }) {
   )
 }
 
+/** Élément cliquable des encarts de gauche : ouvre la fiche du véhicule. */
+function SideItem(props: { moto: InvestorFleetItem; onOpen: (id: string) => void; withProgress?: boolean; size?: 'sm' | 'md' }) {
+  const { moto } = props
+  return (
+    <button
+      type="button"
+      onClick={() => props.onOpen(moto.id)}
+      aria-label={`Voir le détail du véhicule ${moto.plaque}`}
+      className="flex w-full items-center gap-3 rounded-md p-1 text-left outline-hidden transition-colors hover:bg-accent focus-visible:bg-accent"
+    >
+      <Avatar className={props.size === 'sm' ? 'h-9 w-9 shrink-0' : 'h-10 w-10 shrink-0'}>
+        {moto.avatarUrl ? <AvatarImage src={moto.avatarUrl} alt={moto.chauffeur} /> : <AvatarFallback>{moto.avatarFallback}</AvatarFallback>}
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-foreground">{driverName(moto)}</div>
+        <div className="truncate text-xs text-muted-foreground">{moto.plaque}</div>
+        {props.withProgress ? <MotoProgress status={moto.status} value={progressOf(moto)} /> : null}
+      </div>
+    </button>
+  )
+}
+
+interface Loaded {
+  key: string
+  data: InvestorFleetResponse | null
+  error: string | null
+}
+
 export default function InvestorFleet() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme')
     if (saved === 'light' || saved === 'dark') return saved
@@ -138,264 +161,237 @@ export default function InvestorFleet() {
 
   const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
-  const motos = useMemo<Moto[]>(
-    () => [
-      {
-        id: 'm1',
-        chauffeur: 'Jean-Paul K.',
-        plaque: 'LT 402 AB',
-        status: 'actif',
-        semaineAcquise: 12,
-        semaineTotal: 32,
-        revenuMois: 185000,
-        avatarUrl: 'https://i.pravatar.cc/100?img=10',
-        avatarFallback: 'JP',
-        zone: 'Douala',
-      },
-      {
-        id: 'm2',
-        chauffeur: 'Ahmed B.',
-        plaque: 'CE 881 XZ',
-        status: 'panne',
-        semaineAcquise: 8,
-        semaineTotal: 32,
-        revenuMois: 92000,
-        avatarUrl: 'https://i.pravatar.cc/100?img=11',
-        avatarFallback: 'AB',
-        zone: 'Yaoundé',
-        isRecent: true,
-      },
-      {
-        id: 'm3',
-        chauffeur: 'Samuel E.',
-        plaque: 'LT 109 CC',
-        status: 'actif',
-        semaineAcquise: 24,
-        semaineTotal: 32,
-        revenuMois: 210500,
-        avatarUrl: 'https://i.pravatar.cc/100?img=12',
-        avatarFallback: 'SE',
-        zone: 'Bafoussam',
-      },
-      {
-        id: 'm4',
-        chauffeur: 'Marc O.',
-        plaque: 'LT 992 ZZ',
-        status: 'actif',
-        semaineAcquise: 20,
-        semaineTotal: 32,
-        revenuMois: 45000,
-        avatarUrl: 'https://i.pravatar.cc/100?img=13',
-        avatarFallback: 'MO',
-        zone: 'Douala',
-        isRecent: true,
-      },
-      {
-        id: 'm5',
-        chauffeur: 'Hervé T.',
-        plaque: 'CE 002 AB',
-        status: 'actif',
-        semaineAcquise: 30,
-        semaineTotal: 32,
-        revenuMois: 172000,
-        avatarUrl: 'https://i.pravatar.cc/100?img=14',
-        avatarFallback: 'HT',
-        zone: 'Yaoundé',
-      },
-      {
-        id: 'm6',
-        chauffeur: 'Sophie M.',
-        plaque: 'LT 410 MN',
-        status: 'panne',
-        semaineAcquise: 14,
-        semaineTotal: 32,
-        revenuMois: 35000,
-        avatarUrl: 'https://i.pravatar.cc/100?img=15',
-        avatarFallback: 'SM',
-        zone: 'Bafoussam',
-      },
-    ],
-    [],
-  )
-
-  const counts = useMemo(() => {
-    const total = motos.length
-    const circulation = motos.filter((m) => m.status === 'actif').length
-    const maintenance = motos.filter((m) => m.status === 'panne' || m.status === 'indisponible').length
-    return { total, circulation, maintenance }
-  }, [motos])
-
   const [activeTab, setActiveTab] = useState<TabKey>('circulation')
-
-  const filteredMotos = useMemo(() => {
-    if (activeTab === 'all') return motos
-    if (activeTab === 'circulation') return motos.filter((m) => m.status === 'actif')
-    return motos.filter((m) => m.status === 'panne' || m.status === 'indisponible')
-  }, [activeTab, motos])
-
   const [search, setSearch] = useState('')
-  const searchedMotos = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return filteredMotos
-    return filteredMotos.filter((m) => m.plaque.toLowerCase().includes(q) || m.chauffeur.toLowerCase().includes(q))
-  }, [filteredMotos, search])
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [zone, setZone] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
+  const [openId, setOpenId] = useState<string | null>(null)
+  // résultat rattaché à sa requête : changer de filtre n'affiche jamais l'ancienne liste
+  const [loaded, setLoaded] = useState<Loaded | null>(null)
+  // les zones et les compteurs restent affichés pendant qu'un filtre se recharge
+  const [lastData, setLastData] = useState<InvestorFleetResponse | null>(null)
+  const requestKey = `${activeTab}|${debouncedSearch}|${zone}|${reloadKey}`
 
-  const tabDefs: TabDef[] = useMemo(() => {
-    // Icônes légères : on garde la cohérence UI (pas besoin d'exact mapping)
-    return [
-      { key: 'all', label: 'MOTOS TOTAL', count: counts.total, Icon: Filter },
+  // Recherche différée : le filtre est appliqué par le serveur.
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => window.clearTimeout(id)
+  }, [search])
+
+  useEffect(() => {
+    let cancelled = false
+    getInvestorFleet({ group: activeTab, search: debouncedSearch || undefined, zone: zone || undefined })
+      .then((res) => {
+        if (cancelled) return
+        setLoaded({ key: requestKey, data: res, error: null })
+        setLastData(res)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setLoaded({ key: requestKey, data: null, error: err instanceof Error ? err.message : 'Impossible de charger votre parc.' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, debouncedSearch, zone, requestKey])
+
+  const current = loaded && loaded.key === requestKey ? loaded : null
+  const loading = current === null
+  const display = current?.data ?? lastData
+  const motos: InvestorFleetItem[] = current?.data?.items ?? []
+  const counts = useMemo(() => display?.counts ?? { total: 0, circulation: 0, maintenance: 0 }, [display])
+  const zones = display?.zones ?? []
+  const filtered = activeTab !== 'circulation' || debouncedSearch !== '' || zone !== ''
+
+  const tabDefs: TabDef[] = useMemo(
+    () => [
+      { key: 'all', label: 'VÉHICULES TOTAL', count: counts.total, Icon: Filter },
       { key: 'circulation', label: 'EN CIRCULATION', count: counts.circulation, Icon: ShieldAlert },
       { key: 'maintenance', label: 'EN MAINTENANCE', count: counts.maintenance, Icon: Wrench },
-    ]
-  }, [counts])
+    ],
+    [counts],
+  )
 
-  const allStatuses = motos.slice(0, 3)
-  const plusRecent = motos.filter((m) => m.isRecent).slice(0, 2)
-  const byZone = motos.slice(3, 5)
+  const allStatuses = display?.overview ?? []
+  const plusRecent = display?.recent ?? []
+
+  const resetFilters = () => {
+    setActiveTab('circulation')
+    setSearch('')
+    setDebouncedSearch('')
+    setZone('')
+  }
 
   return (
-    <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="flex">
-        <InvestorSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={theme} onToggleTheme={onToggleTheme} />
+    <PortalLayout portal="investor" title="Mon parc" hideHeading theme={theme} onToggleTheme={onToggleTheme}>
+      <div className="flex-1 p-4 sm:p-6">
+        <div className="@container/page space-y-5">
+          {/* Page header */}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Mon Parc Automobile</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Suivi détaillé de vos investissements en circulation.</p>
+          </div>
 
-        <main className="flex-1 p-6">
-          <div className="space-y-5">
-            {/* Page header */}
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Mon Parc Automobile</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Suivi détaillé de vos investissements en circulation.</p>
+          {/* Tabs */}
+          <div className="grid grid-cols-1 gap-3 @xl:grid-cols-3">
+            {tabDefs.map((t) => {
+              const active = t.key === activeTab
+              return (
+                <Button
+                  key={t.key}
+                  type="button"
+                  variant={active ? 'default' : 'outline'}
+                  aria-pressed={active}
+                  onClick={() => setActiveTab(t.key)}
+                  className="h-auto justify-between gap-3 rounded-lg px-4 py-2.5 text-left @xl:py-3"
+                >
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-3 @xl:block">
+                    <div className="text-[11px] font-semibold uppercase tracking-widest opacity-90">{t.label}</div>
+                    <div className="text-lg font-bold @xl:mt-1">{t.count.toString().padStart(2, '0')}</div>
+                  </div>
+                  <t.Icon className={active ? 'h-5 w-5 text-white' : 'h-5 w-5 text-primary'} />
+                </Button>
+              )
+            })}
+          </div>
+
+          {/* Content grid */}
+          <div className="grid grid-cols-1 gap-6 @4xl:grid-cols-3">
+            {/* Left column: summaries */}
+            <div className="order-2 space-y-4 @4xl:order-1 @4xl:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Tous les statuts</CardTitle>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {allStatuses.length > 0 ? `${allStatuses.length} véhicule${allStatuses.length > 1 ? 's' : ''} sur ${counts.total}` : 'Aucun véhicule'}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {allStatuses.length === 0 && loading ? <Skeleton className="h-12 w-full" /> : null}
+                    {allStatuses.map((m) => (
+                      <SideItem key={m.id} moto={m} onOpen={setOpenId} withProgress />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Plus récents</CardTitle>
+                  <div className="mt-1 text-xs text-muted-foreground">Parts prises ces 60 derniers jours</div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {plusRecent.length === 0 && !loading ? <p className="text-xs text-muted-foreground">Aucune part récente.</p> : null}
+                    {plusRecent.map((m) => (
+                      <SideItem key={m.id} moto={m} onOpen={setOpenId} size="sm" />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="hidden @4xl:block">
+                <CardHeader>
+                  <CardTitle className="text-base">Zone géographique</CardTitle>
+                  <div className="mt-1 text-xs text-muted-foreground">Filtrer par zone</div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant={zone === '' ? 'default' : 'outline'} aria-pressed={zone === ''} onClick={() => setZone('')}>
+                      Toutes
+                    </Button>
+                    {zones.map((z) => (
+                      <Button key={z} type="button" size="sm" variant={zone === z ? 'default' : 'outline'} aria-pressed={zone === z} onClick={() => setZone(z)}>
+                        {z}
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Tabs */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {tabDefs.map((t) => {
-                const active = t.key === activeTab
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setActiveTab(t.key)}
-                    className={[
-                      'flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition',
-                      active
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800/60',
-                    ].join(' ')}
-                  >
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold uppercase tracking-widest opacity-90">{t.label}</div>
-                      <div className="mt-1 text-lg font-bold">{t.count.toString().padStart(2, '0')}</div>
-                    </div>
-                    <t.Icon className={active ? 'h-5 w-5 text-white' : 'h-5 w-5 text-blue-600 dark:text-blue-300'} />
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Content grid */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Left column: summaries */}
-              <div className="space-y-4 lg:col-span-1">
-                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                  <CardHeader className="p-5 pb-3">
-                    <CardTitle className="text-base">Tous les statuts</CardTitle>
-                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">2-3 motos sélectionnées</div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {allStatuses.map((m) => {
-                        const pct = Math.round((m.semaineAcquise / m.semaineTotal) * 100)
-                        return (
-                          <div key={m.id} className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 shrink-0">
-                              {m.avatarUrl ? <AvatarImage src={m.avatarUrl} alt={m.chauffeur} /> : <AvatarFallback>{m.avatarFallback}</AvatarFallback>}
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{m.chauffeur}</div>
-                              <div className="truncate text-xs text-slate-500 dark:text-slate-400">{m.plaque}</div>
-                              <MotoProgress status={m.status} value={pct} />
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-                </Card></ParticleHover>
-
-                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                  <CardHeader className="p-5 pb-3">
-                    <CardTitle className="text-base">Plus récents</CardTitle>
-                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Dernières mises à jour</div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {plusRecent.map((m) => (
-                        <div key={m.id} className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 shrink-0">
-                            {m.avatarUrl ? <AvatarImage src={m.avatarUrl} alt={m.chauffeur} /> : <AvatarFallback>{m.avatarFallback}</AvatarFallback>}
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{m.chauffeur}</div>
-                            <div className="truncate text-xs text-slate-500 dark:text-slate-400">{m.plaque}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card></ParticleHover>
-
-                <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                  <CardHeader className="p-5 pb-3">
-                    <CardTitle className="text-base">Zone géographique</CardTitle>
-                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Par zones</div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {byZone.map((m) => (
-                        <div key={m.id} className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{m.chauffeur}</div>
-                            <div className="truncate text-xs text-slate-500 dark:text-slate-400">{m.zone}</div>
-                          </div>
-                          <div className={['shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold', statusPillClasses(m.status)].join(' ')}>
-                            {m.status === 'actif' ? 'Actif' : m.status === 'panne' ? 'En panne' : 'Indispo.'}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card></ParticleHover>
+            {/* Right column: list */}
+            <div className="@container order-1 min-w-0 @4xl:order-2 @4xl:col-span-2">
+              <div className="mb-4 flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  {activeTab === 'all' ? 'Tous les statuts' : activeTab === 'circulation' ? 'En circulation' : 'En maintenance'}
+                  {current?.data ? ` · ${motos.length} véhicule${motos.length > 1 ? 's' : ''}` : ''}
+                </div>
+                <div className="relative min-w-0 @xl:max-w-sm @xl:flex-1">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    type="search"
+                    aria-label="Rechercher une plaque ou un chauffeur"
+                    placeholder="Plaque, chauffeur…"
+                    className="pl-10"
+                  />
+                </div>
               </div>
 
-              {/* Right column: list */}
-              <div className="lg:col-span-2">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                    {activeTab === 'all' ? 'Tous les statuts' : activeTab === 'circulation' ? 'En circulation' : 'En maintenance'}
-                  </div>
-                  <div className="relative min-w-0 sm:max-w-sm">
-                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      type="search"
-                      placeholder="Rechercher une plaque..."
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-50 dark:placeholder:text-slate-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {searchedMotos.map((m) => (
-                    <ParticleHover key={m.id} className="rounded-2xl"><MotoCard moto={m} /></ParticleHover>
+              {zones.length > 0 ? (
+                <div className="mb-4 flex flex-wrap items-center gap-2 @4xl/page:hidden" role="group" aria-label="Filtrer par zone">
+                  <Button type="button" size="sm" variant={zone === '' ? 'default' : 'outline'} aria-pressed={zone === ''} onClick={() => setZone('')}>
+                    Toutes
+                  </Button>
+                  {zones.map((z) => (
+                    <Button key={z} type="button" size="sm" variant={zone === z ? 'default' : 'outline'} aria-pressed={zone === z} onClick={() => setZone(z)}>
+                      {z}
+                    </Button>
                   ))}
                 </div>
-              </div>
+              ) : null}
+
+              {current?.error ? (
+                <Alert variant="destructive">
+                  <AlertTriangle />
+                  <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                    <span>{current.error}</span>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
+                      <RefreshCw />
+                      Réessayer
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : loading ? (
+                <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @4xl:grid-cols-3" aria-busy="true">
+                  {[0, 1, 2].map((i) => (
+                    <Skeleton key={i} className="h-64 w-full" />
+                  ))}
+                </div>
+              ) : motos.length === 0 ? (
+                <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  {counts.total === 0 && !filtered ? (
+                    <>
+                      Vous n&apos;avez pas encore de part dans un véhicule.{' '}
+                      <Link to="/investor-market" className="font-semibold text-primary hover:underline">
+                        Découvrir le marché des parts
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p>Aucun véhicule ne correspond à ces filtres.</p>
+                      <Button type="button" size="sm" variant="outline" className="mt-3" onClick={resetFilters}>
+                        Réinitialiser les filtres
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2 @4xl:grid-cols-3">
+                  {motos.map((m) => (
+                    <MotoCard key={m.id} moto={m} onOpen={setOpenId} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </main>
+        </div>
       </div>
-    </SpotlightSection>
+
+      <InvestorMotoDetailModal motoId={openId} onClose={() => setOpenId(null)} />
+    </PortalLayout>
   )
 }
-

@@ -1,84 +1,322 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
-import { useLogout } from '../../auth/useLogout'
-import { Lock, LogOut, Mail, Shield, User as UserIcon } from 'lucide-react'
-
-import InvestorSidebar from '../../components/InvestorSidebar'
-import { Button } from '../../components/ui/button'
-import { Card } from '../../components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
-import { Badge } from '../../components/ui/badge'
-import { Switch } from '../../components/ui/switch'
-import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
+import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, Bell, Banknote, LogOut, Moon, RotateCcw, Save, Send, Sun, User, UserCog } from 'lucide-react'
+import { toast } from 'sonner'
+import AdminLayout from '@/components/admin/AdminLayout'
+import ProfileCard from '@/components/settings/ProfileCard'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAuth } from '@/auth/useAuth'
+import { useLogout } from '@/auth/useLogout'
+import { EMAIL_RE, errorText } from '@/lib/formErrors'
+import { PAYOUT_FREQUENCY_LABEL } from '@/lib/payouts'
+import {
+  changeInvestorPassword,
+  getInvestorSettings,
+  sendInvestorWeeklyReportNow,
+  updateInvestorProfile,
+  updateInvestorSettings,
+  uploadInvestorAvatar,
+} from '@/services/investorService'
+import type { InvestorNotificationPrefs, InvestorSettings as InvestorSettingsData } from '@/types/api'
 
 type Theme = 'light' | 'dark'
 
-type Profile = {
-  name: string
-  role: string
-  email: string
-  avatarFallback: string
-  avatarUrl?: string
+const dateLabel = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+
+const NOTIFICATION_OPTIONS: Array<{ id: keyof InvestorNotificationPrefs; label: string; description: string }> = [
+  {
+    id: 'weeklyReportEmail',
+    label: 'Rapport hebdomadaire par e-mail',
+    description: 'Chaque lundi matin : vos revenus de la semaine écoulée, le capital récupéré et les véhicules à surveiller.',
+  },
+  {
+    id: 'revenueAlerts',
+    label: 'Revenus et reversements',
+    description: 'Une notification à chaque versement du conducteur qui vous est reversé, à chaque reversement de l’administrateur et à chaque changement de mode de versement.',
+  },
+  {
+    id: 'vehicleAlerts',
+    label: 'État des véhicules',
+    description: 'Une notification quand l’un de vos véhicules tombe en panne, devient indisponible, reprend la route ou est entièrement payé.',
+  },
+]
+
+function NotificationsCard(props: {
+  prefs: InvestorNotificationPrefs
+  hasEmail: boolean
+  onPref: (key: keyof InvestorNotificationPrefs, value: boolean) => void
+}) {
+  const [sending, setSending] = useState(false)
+
+  const sendNow = async () => {
+    setSending(true)
+    try {
+      const res = await sendInvestorWeeklyReportNow()
+      if (res.emailSent) toast.success('Rapport envoyé à votre adresse e-mail')
+      else toast.warning("Le rapport est prêt mais l'e-mail n'a pas pu être envoyé (vérifiez la configuration d'envoi)")
+    } catch (err) {
+      toast.error(errorText(err, 'Envoi impossible'))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Notifications</CardTitle>
+        <CardDescription>Choisissez ce dont vous voulez être prévenu.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 @4xl/page:grid-cols-3">
+          {NOTIFICATION_OPTIONS.map((opt) => (
+            <div key={opt.id} className="flex items-start justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+              <div className="min-w-0">
+                <Label htmlFor={`notif-${opt.id}`} className="text-sm font-semibold">
+                  {opt.label}
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">{opt.description}</p>
+              </div>
+              <Switch id={`notif-${opt.id}`} checked={props.prefs[opt.id]} onCheckedChange={(v) => props.onPref(opt.id, v)} />
+            </div>
+          ))}
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Les décisions sur vos demandes de parts, les nouvelles parts et les résiliations de contrat vous sont toujours notifiées : elles engagent votre capital.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="button" variant="outline" size="sm" disabled={sending || !props.hasEmail} onClick={() => void sendNow()}>
+            <Send />
+            {sending ? 'Envoi…' : 'Envoyer le rapport maintenant'}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            {props.hasEmail ? 'Reçu à votre adresse e-mail, comme chaque lundi.' : "Renseignez d'abord votre adresse e-mail dans le profil."}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
-function Breadcrumb() {
+function AccountCard(props: { data: InvestorSettingsData; theme: Theme; onToggleTheme: () => void; onLogout: () => void }) {
+  const { data } = props
   return (
-    <div className="text-xs text-slate-500 dark:text-slate-400">
-      <span className="font-semibold text-slate-700 dark:text-slate-200">Accueil</span>
-      <span className="mx-2">›</span>
-      <span className="font-semibold">Paramètres</span>
+    <div className="grid grid-cols-1 gap-4 @4xl/page:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Mon compte investisseur</CardTitle>
+          <CardDescription>Informations de votre compte, en lecture seule.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3">
+            <dt className="text-muted-foreground">Membre depuis</dt>
+            <dd className="text-right font-semibold" data-testid="member-since">
+              {dateLabel(data.profile.memberSince)}
+            </dd>
+            <dt className="text-muted-foreground">Parts ouvertes</dt>
+            <dd className="text-right font-semibold" data-testid="parts-count">
+              {data.portfolio.partsCount} part{data.portfolio.partsCount > 1 ? 's' : ''} · {data.portfolio.vehiclesCount} véhicule{data.portfolio.vehiclesCount > 1 ? 's' : ''}
+            </dd>
+            <dt className="text-muted-foreground">Mode de versement</dt>
+            <dd className="text-right font-semibold" data-testid="payout-frequency">
+              {PAYOUT_FREQUENCY_LABEL[data.payout.frequency]}
+            </dd>
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            Le mode de versement est fixé par l’administrateur, qui vous reverse vos gains à cette fréquence.{' '}
+            <Link to="/investor-revenues" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+              <Banknote className="size-3.5" />
+              Voir l’historique des revenus
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Affichage et session</CardTitle>
+          <CardDescription>Réglages de cet appareil.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+            <div className="min-w-0">
+              <Label htmlFor="theme-switch" className="flex items-center gap-2 text-sm font-semibold">
+                {props.theme === 'dark' ? <Moon className="size-4" /> : <Sun className="size-4" />}
+                Thème sombre
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">Mémorisé sur cet appareil.</p>
+            </div>
+            <Switch id="theme-switch" checked={props.theme === 'dark'} onCheckedChange={props.onToggleTheme} />
+          </div>
+          <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={props.onLogout}>
+            <LogOut />
+            Déconnexion
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
-function Modal({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean
-  title: string
-  onClose: () => void
-  children: ReactNode
+function SettingsForm(props: {
+  data: InvestorSettingsData
+  theme: Theme
+  onToggleTheme: () => void
+  onSaved: (data: InvestorSettingsData) => void
+  onReset: () => void
+  onAvatar: (url: string) => void
+  onPasswordChanged: () => void
 }) {
-  if (!open) return null
+  const { data } = props
+  const { updateUser } = useAuth()
+  const handleLogout = useLogout()
+  const [fullName, setFullName] = useState(data.profile.fullName)
+  const [email, setEmail] = useState(data.profile.email ?? '')
+  const [phone, setPhone] = useState(data.profile.phoneNumber)
+  const [prefs, setPrefs] = useState(data.notifications)
+  const [saving, setSaving] = useState(false)
+  const [confirmLogout, setConfirmLogout] = useState(false)
+
+  const profileDirty =
+    fullName.trim() !== data.profile.fullName || email.trim() !== (data.profile.email ?? '') || phone.trim() !== data.profile.phoneNumber
+  const prefsDirty = (Object.keys(prefs) as Array<keyof InvestorNotificationPrefs>).some((k) => prefs[k] !== data.notifications[k])
+  const dirty = profileDirty || prefsDirty
+
+  const save = async () => {
+    if (!fullName.trim()) return toast.error('Le nom complet est requis')
+    if (!phone.trim()) return toast.error('Le numéro de téléphone est requis')
+    if (email.trim() && !EMAIL_RE.test(email.trim())) return toast.error('Adresse e-mail invalide')
+    if (!email.trim() && data.profile.email) return toast.error("L'adresse e-mail ne peut pas être supprimée")
+
+    setSaving(true)
+    try {
+      let next = data
+      if (profileDirty) {
+        const profile = await updateInvestorProfile({
+          fullName: fullName.trim(),
+          phoneNumber: phone.trim(),
+          email: email.trim() || undefined,
+        })
+        next = { ...next, profile: { ...next.profile, ...profile } }
+        updateUser({ fullName: profile.fullName, email: profile.email, phoneNumber: profile.phoneNumber })
+      }
+      if (prefsDirty) next = await updateInvestorSettings(prefs)
+      toast.success('Modifications enregistrées')
+      props.onSaved(next)
+    } catch (err) {
+      toast.error(errorText(err, 'Enregistrement impossible'))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur" onClick={onClose} aria-hidden="true" />
-      <div className="relative w-full max-w-lg">
-        <Card className="rounded-2xl p-6 shadow-lg">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-base font-bold text-slate-900 dark:text-slate-50">{title}</div>
-            </div>
-            <Button
-              type="button"
-              onClick={onClose}
-              className="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-              aria-label="Fermer"
-            >
-              ✕
-            </Button>
-          </div>
+    <>
+      <Tabs defaultValue="profil" className="gap-6">
+        <TabsList className="h-auto w-full flex-wrap">
+          <TabsTrigger value="profil" className="flex-1 gap-2 py-2">
+            <User />
+            <span className="sr-only sm:not-sr-only">Profil</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex-1 gap-2 py-2">
+            <Bell />
+            <span className="sr-only sm:not-sr-only">Notifications</span>
+          </TabsTrigger>
+          <TabsTrigger value="compte" className="flex-1 gap-2 py-2">
+            <UserCog />
+            <span className="sr-only sm:not-sr-only">Compte</span>
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="mt-4">{children}</div>
-        </Card>
+        <TabsContent value="profil">
+          <ProfileCard
+            idPrefix="investor"
+            title="Mon profil"
+            description="Vos informations personnelles, utilisées pour vos contrats et relevés."
+            avatarUrl={data.profile.avatarUrl}
+            savedName={data.profile.fullName}
+            fullName={fullName}
+            email={email}
+            phone={phone}
+            emailHint="Reçoit votre rapport hebdomadaire et les messages de la plateforme."
+            passwordHint={data.profile.passwordChangedAt ? `Dernière modification le ${dateLabel(data.profile.passwordChangedAt)}.` : 'Jamais modifié depuis la création du compte.'}
+            onChange={(patch) => {
+              if (patch.fullName !== undefined) setFullName(patch.fullName)
+              if (patch.email !== undefined) setEmail(patch.email)
+              if (patch.phone !== undefined) setPhone(patch.phone)
+            }}
+            uploadAvatar={uploadInvestorAvatar}
+            onAvatar={props.onAvatar}
+            changePassword={changeInvestorPassword}
+            onPasswordChanged={props.onPasswordChanged}
+          />
+        </TabsContent>
+        <TabsContent value="notifications">
+          <NotificationsCard prefs={prefs} hasEmail={Boolean(data.profile.email)} onPref={(key, value) => setPrefs((prev) => ({ ...prev, [key]: value }))} />
+        </TabsContent>
+        <TabsContent value="compte">
+          <AccountCard data={data} theme={props.theme} onToggleTheme={props.onToggleTheme} onLogout={() => setConfirmLogout(true)} />
+        </TabsContent>
+      </Tabs>
+
+      <div className="sticky bottom-0 -mx-3 mt-auto flex items-center justify-end gap-2 border-t bg-background/90 px-3 py-3 backdrop-blur sm:-mx-4 sm:gap-3 sm:px-4 sm:py-4 md:-mx-6 md:px-6">
+        {dirty ? <span className="mr-auto hidden whitespace-nowrap text-xs font-medium text-muted-foreground sm:inline md:hidden lg:inline">Modifications non enregistrées</span> : null}
+        <Button type="button" variant="outline" className="min-w-0 flex-1 sm:flex-none" disabled={!dirty || saving} onClick={props.onReset}>
+          <RotateCcw />
+          Réinitialiser
+        </Button>
+        <Button type="button" className="min-w-0 flex-1 sm:flex-none" aria-label="Enregistrer les modifications" disabled={!dirty || saving} onClick={() => void save()}>
+          <Save />
+          <span className="sm:hidden">{saving ? 'Envoi…' : 'Enregistrer'}</span>
+          <span className="hidden sm:inline">{saving ? 'Enregistrement…' : 'Enregistrer les modifications'}</span>
+        </Button>
       </div>
-    </div>
+
+      <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Se déconnecter ?</AlertDialogTitle>
+            <AlertDialogDescription>Vous devrez vous reconnecter pour accéder à votre espace.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout}>Se déconnecter</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
 export default function InvestorSettings() {
-  const handleLogout = useLogout()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
+  const { updateUser } = useAuth()
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme')
     if (saved === 'light' || saved === 'dark') return saved
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
+  const [data, setData] = useState<InvestorSettingsData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // changer la clé recrée le formulaire avec les valeurs enregistrées (« Réinitialiser » et après un enregistrement)
+  const [formKey, setFormKey] = useState(0)
 
   useEffect(() => {
     const root = document.documentElement
@@ -87,277 +325,71 @@ export default function InvestorSettings() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+  useEffect(() => {
+    let cancelled = false
+    getInvestorSettings()
+      .then((res) => {
+        if (cancelled) return
+        setData(res)
+        setError(null)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorText(err, 'Impossible de charger les paramètres.'))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  const userProfile = useMemo<Profile>(
-    () => ({
-      name: 'Patron Invest',
-      role: 'Investisseur Principal',
-      email: 'patron.invest@example.com',
-      avatarFallback: 'PI',
-      avatarUrl: undefined,
-    }),
-    [],
+  const onSaved = useCallback((next: InvestorSettingsData) => {
+    setData(next)
+    setFormKey((k) => k + 1)
+  }, [])
+
+  const onAvatar = useCallback(
+    (avatarUrl: string) => {
+      setData((prev) => (prev ? { ...prev, profile: { ...prev.profile, avatarUrl } } : prev))
+      updateUser({ avatarUrl })
+    },
+    [updateUser],
   )
 
-  const [profileDraft, setProfileDraft] = useState(userProfile)
-  const [isEditingProfile, setIsEditingProfile] = useState(false)
-
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
-
-  const [isTwoFaEnabled, setIsTwoFaEnabled] = useState(true)
-
-  const onLogout = () => {
-    const ok = window.confirm('Confirmer la déconnexion ?')
-    if (!ok) return
-    handleLogout()
-  }
-
-  const onSaveProfile = () => {
-    console.log('[InvestorSettings] save profile (mock)', profileDraft)
-    window.alert("Profil mis à jour (mock).")
-    setIsEditingProfile(false)
-  }
-
-  const onSavePassword = () => {
-    console.log('[InvestorSettings] change password (mock)', { currentPassword: '***', newPassword: '***' })
-    window.alert('Mot de passe changé (mock).')
-    setCurrentPassword('')
-    setNewPassword('')
-    setIsChangingPassword(false)
-  }
+  const onPasswordChanged = useCallback(() => {
+    setData((prev) => (prev ? { ...prev, profile: { ...prev.profile, passwordChangedAt: new Date().toISOString() } } : prev))
+  }, [])
 
   return (
-    <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="flex">
-        <div className="no-print">
-          <InvestorSidebar
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-            theme={theme}
-            onToggleTheme={onToggleTheme}
-          />
-        </div>
-
-        <main className="flex-1 p-6">
-          <div className="w-full space-y-5">
-            <Breadcrumb />
-
-            <header>
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Paramètres</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Gérez votre compte et vos préférences d'investissement.
-              </p>
-            </header>
-
-            <ParticleHover className="rounded-2xl"><Card className="rounded-2xl border-slate-200/70 p-6 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-              {/* Informations du profil */}
-              <div className="space-y-4">
-                <div className="text-base font-bold text-slate-900 dark:text-slate-50">Informations du profil</div>
-
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex min-w-0 items-center gap-4">
-                    <Avatar className="h-16 w-16 ring-4 ring-blue-50 dark:ring-blue-950/40">
-                      {profileDraft.avatarUrl ? (
-                        <AvatarImage src={profileDraft.avatarUrl} alt={profileDraft.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <AvatarFallback>{profileDraft.avatarFallback}</AvatarFallback>
-                      )}
-                    </Avatar>
-
-                    <div className="min-w-0">
-                      <div className="truncate text-base font-bold text-slate-900 dark:text-slate-50">{profileDraft.name}</div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Badge variant="secondary">{profileDraft.role}</Badge>
-                      </div>
-                      <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                        <Mail className="h-4 w-4" />
-                        <span className="truncate">{profileDraft.email}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={() => setIsEditingProfile(true)}
-                    className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    Modifier le profil
-                  </Button>
-                </div>
-              </div>
-
-              <div className="mt-7 border-t border-slate-100 dark:border-slate-800/60" />
-
-              {/* Sécurité */}
-              <div className="mt-7 space-y-4">
-                <div className="text-base font-bold text-slate-900 dark:text-slate-50">Sécurité</div>
-
-                {/* Mot de passe */}
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      <Lock className="h-4 w-4 text-slate-500" />
-                      Mot de passe
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Dernière modification il y a 3 mois</div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={() => setIsChangingPassword(true)}
-                    className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    Changer
-                  </Button>
-                </div>
-
-                <div className="border-t border-slate-100 dark:border-slate-800/60" />
-
-                {/* 2FA */}
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      <Shield className="h-4 w-4 text-slate-500" />
-                      Authentification à deux facteurs (2FA)
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Ajoute une couche de sécurité supplémentaire
-                    </div>
-                  </div>
-
-                  <Switch
-                    checked={isTwoFaEnabled}
-                    onChange={(v) => {
-                      setIsTwoFaEnabled(v)
-                      console.log('[InvestorSettings] toggle 2FA (mock)', v)
-                      window.alert(v ? '2FA activé (mock).' : '2FA désactivé (mock).')
-                    }}
-                    aria-label="Authentification à deux facteurs"
-                  />
-                </div>
-              </div>
-
-              {/* Déconnexion */}
-              <div className="mt-7">
-                <div className="border-t border-slate-100 dark:border-slate-800/60" />
-                <div className="pt-5">
-                  <Button
-                    type="button"
-                    onClick={onLogout}
-                    className="inline-flex items-center gap-2 rounded-xl bg-transparent px-0 text-red-600 hover:underline dark:text-red-400"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Déconnexion
-                  </Button>
-                </div>
-              </div>
-            </Card></ParticleHover>
-
-            {/* Modale édition profil */}
-            <Modal
-              open={isEditingProfile}
-              title="Modifier le profil"
-              onClose={() => setIsEditingProfile(false)}
-            >
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Nom</label>
-                  <div className="relative">
-                    <UserIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pl-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-50"
-                      value={profileDraft.name}
-                      onChange={(e) => setProfileDraft((p) => ({ ...p, name: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email</label>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pl-10 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-50"
-                      type="email"
-                      value={profileDraft.email}
-                      onChange={(e) => setProfileDraft((p) => ({ ...p, email: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => setIsEditingProfile(false)}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={onSaveProfile}
-                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
-                  >
-                    Enregistrer
-                  </Button>
-                </div>
-              </div>
-            </Modal>
-
-            {/* Modale changement mot de passe */}
-            <Modal
-              open={isChangingPassword}
-              title="Changer le mot de passe"
-              onClose={() => setIsChangingPassword(false)}
-            >
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Mot de passe actuel</label>
-                  <input
-                    type="password"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-50"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="••••••••••"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Nouveau mot de passe</label>
-                  <input
-                    type="password"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-50"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••••"
-                  />
-                </div>
-
-                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                  <Button
-                    type="button"
-                    onClick={() => setIsChangingPassword(false)}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-800/60 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    Annuler
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={onSavePassword}
-                    className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-95"
-                  >
-                    Confirmer
-                  </Button>
-                </div>
-              </div>
-            </Modal>
+    <AdminLayout
+      portal="investor"
+      title="Paramètres"
+      description="Gérez votre compte et vos préférences d'investissement."
+      theme={theme}
+      onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+    >
+      <div className="@container/page flex min-w-0 flex-1 flex-col gap-4">
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : data === null ? (
+          <div className="space-y-4" data-testid="settings-skeleton">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
           </div>
-        </main>
+        ) : (
+          <SettingsForm
+            key={formKey}
+            data={data}
+            theme={theme}
+            onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            onSaved={onSaved}
+            onReset={() => setFormKey((k) => k + 1)}
+            onAvatar={onAvatar}
+            onPasswordChanged={onPasswordChanged}
+          />
+        )}
       </div>
-    </SpotlightSection>
+    </AdminLayout>
   )
 }
-
