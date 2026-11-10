@@ -1,49 +1,287 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, Bell, LogOut, Moon, RotateCcw, Save, Sun, User, UserCog } from 'lucide-react'
+import { toast } from 'sonner'
+import AdminLayout from '@/components/admin/AdminLayout'
+import ProfileCard from '@/components/settings/ProfileCard'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Bell,
-  ChevronDown,
-  Globe,
-  Lock,
-  LogOut,
-  MessageCircle,
-  Pencil,
-  Shield,
-  Smartphone,
-  User,
-} from 'lucide-react'
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAuth } from '@/auth/useAuth'
+import { useLogout } from '@/auth/useLogout'
+import { EMAIL_RE, errorText } from '@/lib/formErrors'
+import { VEHICLE_TYPE_LABEL } from '@/lib/vehicles'
+import {
+  changeDriverPassword,
+  getDriverSettings,
+  updateDriverProfile,
+  updateDriverSettings,
+  uploadDriverAvatar,
+} from '@/services/driverService'
+import type { DriverNotificationPrefs, DriverSettingsResponse } from '@/types/api'
 
-import { ParticleHover, SpotlightSection } from '../../components/MagicBento'
-import DriverSidebar from '../../components/DriverSidebar'
-import { useLogout } from '../../auth/useLogout'
-import { useAuth } from '../../auth/useAuth'
-import { Avatar } from '../../components/ui/avatar'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Switch } from '../../components/ui/switch'
+type Theme = 'light' | 'dark'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+const dateLabel = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
-type Language = 'fr' | 'en'
+const NOTIFICATION_OPTIONS: Array<{ id: keyof DriverNotificationPrefs; label: string; description: string }> = [
+  {
+    id: 'paymentAlerts',
+    label: 'Suivi de mes paiements',
+    description: 'Une notification quand un versement est enregistré, validé, refusé ou remis en attente par l’administrateur.',
+  },
+  {
+    id: 'paymentReminders',
+    label: 'Rappel de versement',
+    description: 'Chaque vendredi matin, un rappel dans l’application tant que le versement de la semaine n’est pas réglé, avec le montant restant à verser.',
+  },
+]
 
-type DriverSettings = {
-  smsAlerts: boolean
-  pushNotifications: boolean
-  paymentReminders: boolean
-  language: Language
+function NotificationsCard(props: { prefs: DriverNotificationPrefs; onPref: (key: keyof DriverNotificationPrefs, value: boolean) => void }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Notifications</CardTitle>
+        <CardDescription>Choisissez ce dont vous voulez être prévenu dans l’application.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 @3xl/page:grid-cols-2">
+          {NOTIFICATION_OPTIONS.map((opt) => (
+            <div key={opt.id} className="flex items-start justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+              <div className="min-w-0">
+                <Label htmlFor={`notif-${opt.id}`} className="text-sm font-semibold">
+                  {opt.label}
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">{opt.description}</p>
+              </div>
+              <Switch id={`notif-${opt.id}`} checked={props.prefs[opt.id]} onCheckedChange={(v) => props.onPref(opt.id, v)} />
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Les notifications qui engagent votre contrat (véhicule affecté ou retiré, résiliation, signalement traité) vous sont toujours envoyées.
+        </p>
+      </CardContent>
+    </Card>
+  )
 }
 
-// ─── DriverSettings ─────────────────────────────────────────────────────────
+function AccountCard(props: { data: DriverSettingsResponse; theme: Theme; onToggleTheme: () => void; onLogout: () => void }) {
+  const { data } = props
+  const vehicle = data.vehicle
+  return (
+    <div className="grid grid-cols-1 gap-4 @3xl/page:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Mon compte conducteur</CardTitle>
+          <CardDescription>Informations de votre compte, en lecture seule.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-3">
+            <dt className="text-muted-foreground">Membre depuis</dt>
+            <dd className="text-right font-semibold" data-testid="member-since">
+              {dateLabel(data.profile.memberSince)}
+            </dd>
+            <dt className="text-muted-foreground">Véhicule</dt>
+            <dd className="text-right font-semibold" data-testid="vehicle">
+              {vehicle ? `${VEHICLE_TYPE_LABEL[vehicle.vehicleType]} · ${vehicle.matricule}` : 'Aucun véhicule affecté'}
+            </dd>
+            {vehicle?.assignedAt ? (
+              <>
+                <dt className="text-muted-foreground">Affecté le</dt>
+                <dd className="text-right font-semibold" data-testid="assigned-at">
+                  {dateLabel(vehicle.assignedAt)}
+                </dd>
+              </>
+            ) : null}
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            Votre contrat et vos échéances sont sur le{' '}
+            <Link to="/driver-dashboard" className="font-medium text-primary hover:underline">
+              tableau de bord
+            </Link>
+            .
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Affichage et session</CardTitle>
+          <CardDescription>Réglages de cet appareil.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/40 p-4">
+            <div className="min-w-0">
+              <Label htmlFor="theme-switch" className="flex items-center gap-2 text-sm font-semibold">
+                {props.theme === 'dark' ? <Moon className="size-4" /> : <Sun className="size-4" />}
+                Thème sombre
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">Mémorisé sur cet appareil. L’application est disponible en français.</p>
+            </div>
+            <Switch id="theme-switch" checked={props.theme === 'dark'} onCheckedChange={props.onToggleTheme} />
+          </div>
+          <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={props.onLogout}>
+            <LogOut />
+            Se déconnecter
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function SettingsForm(props: {
+  data: DriverSettingsResponse
+  theme: Theme
+  onToggleTheme: () => void
+  onSaved: (data: DriverSettingsResponse) => void
+  onReset: () => void
+  onAvatar: (url: string) => void
+  onPasswordChanged: () => void
+}) {
+  const { data } = props
+  const { updateUser } = useAuth()
+  const handleLogout = useLogout()
+  const [fullName, setFullName] = useState(data.profile.fullName)
+  const [email, setEmail] = useState(data.profile.email ?? '')
+  const [phone, setPhone] = useState(data.profile.phoneNumber)
+  const [prefs, setPrefs] = useState(data.notifications)
+  const [saving, setSaving] = useState(false)
+  const [confirmLogout, setConfirmLogout] = useState(false)
+
+  const profileDirty =
+    fullName.trim() !== data.profile.fullName || email.trim() !== (data.profile.email ?? '') || phone.trim() !== data.profile.phoneNumber
+  const prefsDirty = (Object.keys(prefs) as Array<keyof DriverNotificationPrefs>).some((k) => prefs[k] !== data.notifications[k])
+  const dirty = profileDirty || prefsDirty
+
+  const save = async () => {
+    if (!fullName.trim()) return toast.error('Le nom complet est requis')
+    if (!phone.trim()) return toast.error('Le numéro de téléphone est requis')
+    if (email.trim() && !EMAIL_RE.test(email.trim())) return toast.error('Adresse e-mail invalide')
+    if (!email.trim() && data.profile.email) return toast.error("L'adresse e-mail ne peut pas être supprimée")
+
+    setSaving(true)
+    try {
+      let next = data
+      if (profileDirty) {
+        const profile = await updateDriverProfile({ fullName: fullName.trim(), phoneNumber: phone.trim(), email: email.trim() || undefined })
+        next = { ...next, profile: { ...next.profile, ...profile } }
+        updateUser({ fullName: profile.fullName, email: profile.email, phoneNumber: profile.phoneNumber })
+      }
+      if (prefsDirty) next = await updateDriverSettings(prefs)
+      toast.success('Modifications enregistrées')
+      props.onSaved(next)
+    } catch (err) {
+      toast.error(errorText(err, 'Enregistrement impossible'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <Tabs defaultValue="profil" className="gap-6">
+        <TabsList className="h-auto w-full flex-wrap">
+          <TabsTrigger value="profil" className="flex-1 gap-2 py-2">
+            <User />
+            <span className="sr-only sm:not-sr-only">Profil</span>
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex-1 gap-2 py-2">
+            <Bell />
+            <span className="sr-only sm:not-sr-only">Notifications</span>
+          </TabsTrigger>
+          <TabsTrigger value="compte" className="flex-1 gap-2 py-2">
+            <UserCog />
+            <span className="sr-only sm:not-sr-only">Compte</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profil">
+          <ProfileCard
+            idPrefix="driver"
+            title="Mon profil"
+            description="Vos informations personnelles, utilisées pour votre contrat et vos paiements."
+            avatarUrl={data.profile.avatarUrl}
+            savedName={data.profile.fullName}
+            fullName={fullName}
+            email={email}
+            phone={phone}
+            emailHint="Reçoit les messages de la plateforme, par exemple vos identifiants si l'administrateur les réinitialise."
+            passwordHint={data.profile.passwordChangedAt ? `Dernière modification le ${dateLabel(data.profile.passwordChangedAt)}.` : 'Jamais modifié depuis la création du compte.'}
+            onChange={(patch) => {
+              if (patch.fullName !== undefined) setFullName(patch.fullName)
+              if (patch.email !== undefined) setEmail(patch.email)
+              if (patch.phone !== undefined) setPhone(patch.phone)
+            }}
+            uploadAvatar={uploadDriverAvatar}
+            onAvatar={props.onAvatar}
+            changePassword={changeDriverPassword}
+            onPasswordChanged={props.onPasswordChanged}
+          />
+        </TabsContent>
+        <TabsContent value="notifications">
+          <NotificationsCard prefs={prefs} onPref={(key, value) => setPrefs((prev) => ({ ...prev, [key]: value }))} />
+        </TabsContent>
+        <TabsContent value="compte">
+          <AccountCard data={data} theme={props.theme} onToggleTheme={props.onToggleTheme} onLogout={() => setConfirmLogout(true)} />
+        </TabsContent>
+      </Tabs>
+
+      <div className="sticky bottom-0 -mx-3 mt-auto flex items-center justify-end gap-2 border-t bg-background/90 px-3 py-3 backdrop-blur sm:-mx-4 sm:gap-3 sm:px-4 sm:py-4 md:-mx-6 md:px-6">
+        {dirty ? <span className="mr-auto hidden whitespace-nowrap text-xs font-medium text-muted-foreground sm:inline md:hidden lg:inline">Modifications non enregistrées</span> : null}
+        <Button type="button" variant="outline" className="min-w-0 flex-1 sm:flex-none" disabled={!dirty || saving} onClick={props.onReset}>
+          <RotateCcw />
+          Réinitialiser
+        </Button>
+        <Button type="button" className="min-w-0 flex-1 sm:flex-none" aria-label="Enregistrer les modifications" disabled={!dirty || saving} onClick={() => void save()}>
+          <Save />
+          <span className="sm:hidden">{saving ? 'Envoi…' : 'Enregistrer'}</span>
+          <span className="hidden sm:inline">{saving ? 'Enregistrement…' : 'Enregistrer les modifications'}</span>
+        </Button>
+      </div>
+
+      <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Se déconnecter ?</AlertDialogTitle>
+            <AlertDialogDescription>Vous devrez vous reconnecter pour accéder à votre espace.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout}>Se déconnecter</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
 
 export default function DriverSettings() {
-  const { user } = useAuth()
-  const logoutAndRedirect = useLogout()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+  const { updateUser } = useAuth()
+  const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme')
     if (saved === 'light' || saved === 'dark') return saved
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
+  const [data, setData] = useState<DriverSettingsResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // changer la clé recrée le formulaire avec les valeurs enregistrées (« Réinitialiser » et après un enregistrement)
+  const [formKey, setFormKey] = useState(0)
 
   useEffect(() => {
     const root = document.documentElement
@@ -52,291 +290,67 @@ export default function DriverSettings() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  const onToggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+  useEffect(() => {
+    let cancelled = false
+    getDriverSettings()
+      .then((res) => {
+        if (cancelled) return
+        setData(res)
+        setError(null)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(errorText(err, 'Impossible de charger les paramètres.'))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  // Form state
-  const [settings, setSettings] = useState<DriverSettings>({
-    smsAlerts: true,
-    pushNotifications: true,
-    paymentReminders: false,
-    language: 'fr',
-  })
+  const onSaved = useCallback((next: DriverSettingsResponse) => {
+    setData(next)
+    setFormKey((k) => k + 1)
+  }, [])
 
-  const updateSetting = <K extends keyof DriverSettings>(key: K, value: DriverSettings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }))
-  }
+  const onAvatar = useCallback(
+    (avatarUrl: string) => {
+      setData((prev) => (prev ? { ...prev, profile: { ...prev.profile, avatarUrl } } : prev))
+      updateUser({ avatarUrl })
+    },
+    [updateUser],
+  )
 
-  const handleEditProfile = () => {
-    window.alert('Modification du profil (mock) — formulaire à implémenter.')
-  }
+  const onPasswordChanged = useCallback(() => {
+    setData((prev) => (prev ? { ...prev, profile: { ...prev.profile, passwordChangedAt: new Date().toISOString() } } : prev))
+  }, [])
 
-  const handleChangePassword = () => {
-    window.alert('Changement de mot de passe (mock) — page à implémenter.')
-  }
-
-  const handleConfigure2FA = () => {
-    window.alert('Configuration 2FA (mock) — page à implémenter.')
-  }
-
-  const onLogout = () => {
-    const ok = window.confirm('Confirmer la déconnexion ?')
-    if (!ok) return
-    logoutAndRedirect()
-  }
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
   return (
-    <SpotlightSection className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="flex">
-        <DriverSidebar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          theme={theme}
-          onToggleTheme={onToggleTheme}
-        />
-
-        <main className="flex-1 p-6">
-          <div className="w-full space-y-5">
-            {/* Header */}
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-                Paramètres du compte
-              </h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Gérez vos informations personnelles et vos préférences de l'application.
-              </p>
-            </div>
-
-            {/* Informations personnelles */}
-            <ParticleHover className="rounded-2xl">
-              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                <CardHeader className="p-5 pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <User className="h-4 w-4 text-slate-500" />
-                    Informations personnelles
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-5 pt-0">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 bg-blue-600 text-lg font-bold text-white">
-                      {user?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) ?? 'JD'}
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold text-slate-900 dark:text-slate-50">
-                          {user?.fullName ?? 'Conducteur'}
-                        </span>
-                        <Badge variant="green">Conducteur Vérifié</Badge>
-                      </div>
-                      <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                        Membre depuis {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <hr className="border-slate-100 dark:border-slate-800/60" />
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3 text-sm">
-                      <Smartphone className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="text-slate-600 dark:text-slate-300">{user?.phoneNumber ?? '—'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <MessageCircle className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="text-slate-600 dark:text-slate-300">{user?.email ?? '—'}</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={handleEditProfile}
-                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    Modifier le profil
-                  </Button>
-                </CardContent>
-              </Card>
-            </ParticleHover>
-
-            {/* Sécurité */}
-            <ParticleHover className="rounded-2xl">
-              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                <CardHeader className="p-5 pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Shield className="h-4 w-4 text-slate-500" />
-                    Sécurité
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 p-5 pt-0">
-                  {/* Mot de passe */}
-                  <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <div className="flex items-start gap-3">
-                      <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                          Mot de passe
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          Dernière modif. il y a 3 mois
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={handleChangePassword}
-                      className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                    >
-                      Changer
-                    </Button>
-                  </div>
-
-                  <hr className="border-slate-100 dark:border-slate-800/60" />
-
-                  {/* 2FA */}
-                  <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <div className="flex items-start gap-3">
-                      <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                          Authentification 2FA
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          Sécurisez votre compte avec un code SMS.
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={handleConfigure2FA}
-                      className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200 dark:hover:bg-slate-800"
-                    >
-                      Configurer
-                    </Button>
-                  </div>
-
-                  <hr className="border-slate-100 dark:border-slate-800/60" />
-
-                  {/* Alertes SMS */}
-                  <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <div className="flex items-start gap-3">
-                      <Bell className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                          Alertes SMS
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          Notifications critiques : pannes signalées, urgences.
-                        </div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={settings.smsAlerts}
-                      onChange={(v) => updateSetting('smsAlerts', v)}
-                      aria-label="Alertes SMS"
-                    />
-                  </div>
-
-                  <hr className="border-slate-100 dark:border-slate-800/60" />
-
-                  {/* Notifications Push */}
-                  <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <div className="flex items-start gap-3">
-                      <Bell className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                          Notifications Push
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          Demandes de nouveaux trajets en temps réel.
-                        </div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={settings.pushNotifications}
-                      onChange={(v) => updateSetting('pushNotifications', v)}
-                      aria-label="Notifications Push"
-                    />
-                  </div>
-
-                  <hr className="border-slate-100 dark:border-slate-800/60" />
-
-                  {/* Rappels de paiement */}
-                  <div className="flex items-center justify-between gap-4 rounded-xl px-3 py-3 transition hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <div className="flex items-start gap-3">
-                      <Bell className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                          Rappels de paiement
-                        </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                          Résumé hebdomadaire et versements imminents.
-                        </div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={settings.paymentReminders}
-                      onChange={(v) => updateSetting('paymentReminders', v)}
-                      aria-label="Rappels de paiement"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </ParticleHover>
-
-            {/* Langue & Affichage */}
-            <ParticleHover className="rounded-2xl">
-              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                <CardHeader className="p-5 pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Globe className="h-4 w-4 text-slate-500" />
-                    Langue & Affichage
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-5 pt-0">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Choisissez la langue principale de l'interface de l'application.
-                  </p>
-                  <div className="relative">
-                    <select
-                      value={settings.language}
-                      onChange={(e) => updateSetting('language', e.target.value as Language)}
-                      className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-50"
-                    >
-                      <option value="fr">Français</option>
-                      <option value="en">English</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  </div>
-                </CardContent>
-              </Card>
-            </ParticleHover>
-
-            {/* Déconnexion */}
-            <ParticleHover className="rounded-2xl">
-              <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm dark:border-slate-800/60 dark:bg-slate-900/40">
-                <CardContent className="p-5">
-                  <Button
-                    type="button"
-                    onClick={onLogout}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-50 dark:border-red-900/40 dark:bg-slate-900/40 dark:text-red-400 dark:hover:bg-red-950/20"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Se déconnecter
-                  </Button>
-                </CardContent>
-              </Card>
-            </ParticleHover>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                {user?.fullName ?? 'Conducteur'} – Conducteur Vérifié
-              </div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">CamerRideShare</div>
-            </div>
+    <AdminLayout portal="driver" title="Paramètres" description="Gérez vos informations personnelles et vos préférences de l'application." theme={theme} onToggleTheme={toggleTheme}>
+      <div className="@container/page flex min-w-0 flex-1 flex-col gap-4">
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTriangle />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : data === null ? (
+          <div className="space-y-4" data-testid="settings-skeleton">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
           </div>
-        </main>
+        ) : (
+          <SettingsForm
+            key={formKey}
+            data={data}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onSaved={onSaved}
+            onReset={() => setFormKey((k) => k + 1)}
+            onAvatar={onAvatar}
+            onPasswordChanged={onPasswordChanged}
+          />
+        )}
       </div>
-    </SpotlightSection>
+    </AdminLayout>
   )
 }
