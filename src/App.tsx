@@ -7,6 +7,11 @@ import ParcPage from './pages/ParcPage.tsx'
 import PaiementsPage from './pages/PaiementsPage.tsx'
 import InvestisseursPage from './pages/InvestisseursPage.tsx'
 import ParametresPage from './pages/ParametresPage.tsx'
+import DemandesPartsPage from './pages/DemandesPartsPage.tsx'
+import CalendrierPage from './pages/CalendrierPage.tsx'
+import ReversementsPage from './pages/ReversementsPage.tsx'
+import RetardsPage from './pages/RetardsPage.tsx'
+import InvestorMarketPage from './pages/investor/InvestorMarket.tsx'
 import InvestorDashboardPage from './pages/investor/InvestorDashboard.tsx'
 import InvestorFleetPage from './pages/investor/InvestorFleet.tsx'
 import RevenueHistoryPage from './pages/investor/RevenueHistory.tsx'
@@ -16,6 +21,7 @@ import DriverDashboardPage from './pages/driver/DriverDashboard.tsx'
 import DriverPaymentsPage from './pages/driver/DriverPayments.tsx'
 import DriverSupportPage from './pages/driver/DriverSupport.tsx'
 import DriverSettingsPage from './pages/driver/DriverSettings.tsx'
+import PwaNavigationWatcher from './components/pwa/PwaNavigationWatcher.tsx'
 import CatchAllRedirect from './auth/CatchAllRedirect.tsx'
 import GuestOnly from './auth/GuestOnly.tsx'
 import RequireAuth from './auth/RequireAuth.tsx'
@@ -40,6 +46,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <PwaNavigationWatcher />
       <div className="relative min-h-screen">
         <Routes>
           <Route path="/" element={<RootRedirect />} />
@@ -65,6 +72,22 @@ function App() {
                 element={<InvestisseursPage theme={theme} onToggleTheme={onToggleTheme} />}
               />
               <Route
+                path="/calendrier"
+                element={<CalendrierPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route
+                path="/retards"
+                element={<RetardsPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route
+                path="/reversements"
+                element={<ReversementsPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route
+                path="/demandes-parts"
+                element={<DemandesPartsPage theme={theme} onToggleTheme={onToggleTheme} />}
+              />
+              <Route
                 path="/parametres"
                 element={<ParametresPage theme={theme} onToggleTheme={onToggleTheme} />}
               />
@@ -73,6 +96,7 @@ function App() {
             <Route element={<RequireRole allowed={['INVESTOR']} />}>
               <Route path="/investor-dashboard" element={<InvestorDashboardPage />} />
               <Route path="/investor-fleet" element={<InvestorFleetPage />} />
+              <Route path="/investor-market" element={<InvestorMarketPage />} />
               <Route path="/investor-revenues" element={<RevenueHistoryPage />} />
               <Route path="/investor-reports" element={<InvestorReportsPage />} />
               <Route path="/investor-settings" element={<InvestorSettingsPage />} />
