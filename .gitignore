@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Configuration locale (URL de l API, cible du proxy)
+.env
+.env.local
