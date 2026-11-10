@@ -8,6 +8,7 @@ import type {
   MotoListItem,
   MotoStatus,
   PaginatedMotos,
+  VehicleType,
 } from '../types/api'
 
 const PAGE_LIMIT = 12
@@ -24,7 +25,9 @@ export type FleetParcFilters = {
   search: string
   status: MotoStatus | ''
   city: string
-  model: string
+  vehicleType: VehicleType | ''
+  /** '' = tous, 'none' = sans chauffeur, sinon identifiant du chauffeur. */
+  driver: string
 }
 
 const defaultFilters: FleetParcFilters = {
@@ -32,7 +35,8 @@ const defaultFilters: FleetParcFilters = {
   search: '',
   status: '',
   city: '',
-  model: '',
+  vehicleType: '',
+  driver: '',
 }
 
 function toListParams(filters: FleetParcFilters): ListMotosParams {
@@ -42,7 +46,8 @@ function toListParams(filters: FleetParcFilters): ListMotosParams {
     search: filters.search.trim() || undefined,
     status: filters.status || undefined,
     city: filters.city || undefined,
-    model: filters.model || undefined,
+    vehicleType: filters.vehicleType || undefined,
+    driver: filters.driver || undefined,
   }
 }
 
@@ -133,9 +138,18 @@ export function useFleetParc() {
     [refreshList],
   )
 
-  const setModelFilter = useCallback(
-    (model: string) => {
-      const next = { ...filtersRef.current, model, page: 1 }
+  const setVehicleTypeFilter = useCallback(
+    (vehicleType: VehicleType | '') => {
+      const next = { ...filtersRef.current, vehicleType, page: 1 }
+      setFilters(next)
+      void refreshList(next)
+    },
+    [refreshList],
+  )
+
+  const setDriverFilter = useCallback(
+    (driver: string) => {
+      const next = { ...filtersRef.current, driver, page: 1 }
       setFilters(next)
       void refreshList(next)
     },
@@ -170,6 +184,7 @@ export function useFleetParc() {
     setSearch,
     setStatusFilter,
     setCityFilter,
-    setModelFilter,
+    setVehicleTypeFilter,
+    setDriverFilter,
   }
 }

@@ -19,7 +19,8 @@ function buildMotosQuery(params: ListMotosParams = {}): string {
   if (params.search?.trim()) qs.set('search', params.search.trim())
   if (params.status) qs.set('status', params.status)
   if (params.city) qs.set('city', params.city)
-  if (params.model) qs.set('model', params.model)
+  if (params.vehicleType) qs.set('vehicleType', params.vehicleType)
+  if (params.driver) qs.set('driver', params.driver)
   const query = qs.toString()
   return query ? `?${query}` : ''
 }
@@ -52,6 +53,13 @@ export function updateMoto(id: number, body: UpdateMotoPayload): Promise<MotoLis
     method: 'PATCH',
     body: JSON.stringify(body),
   })
+}
+
+/** Téléverse la photo d'une moto (JPEG, PNG, WebP, 5 Mo max) et renvoie son URL. */
+export function uploadMotoImage(file: File): Promise<{ url: string }> {
+  const body = new FormData()
+  body.append('image', file)
+  return apiRequest<{ url: string }>('/motos/upload-image', { method: 'POST', body })
 }
 
 export function deleteMoto(id: number): Promise<DeleteMotoResponse | void> {

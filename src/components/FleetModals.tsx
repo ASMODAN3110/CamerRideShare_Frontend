@@ -1,89 +1,323 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-import { Button } from './ui/button'
-import { Badge } from './ui/badge'
-import { Progress } from './ui/progress'
+import { AlertTriangle, Ban, FileText, Plus, Printer, UserMinus, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import ImageUpload from './ImageUpload'
+import RemoteSelect from './RemoteSelect'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Progress } from '@/components/ui/progress'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { downloadContract, printContract } from '../lib/contracts'
+import { VEHICLE_TYPE_LABEL } from '../lib/vehicles'
+import { getAdminSettings } from '../services/adminSettingsService'
 import { createMoto, deleteMoto, getMoto, updateMoto } from '../services/fleetService'
-import { listDriversFromApi, listInvestorsFromApi, userSelectErrorMessage } from '../services/usersService'
+import { listDriversFromApi, listInvestorsFromApi } from '../services/usersService'
+import { classifyVehicleLoss, getDriverTerminations, terminateDriverContract } from '../services/terminationService'
+import { DRIVER_REASONS, investorResultMessage, REASON_LABEL } from '../lib/termination'
+import { TerminationDialog } from './TerminationDialog'
+import { InvestorTerminationDialog } from './InvestorTerminationDialog'
+import DriverArrearsWarning from './DriverArrearsWarning'
 import { DEFAULT_MOTO_IMAGE, STATUS_UI } from '../lib/fleet'
 import { formatShortDate, formatXafLabel } from '../lib/format'
+import { defaultWeeklyAmount, MAX_PLAN_WEEKS, MIN_INVESTMENT_XAF, planWeeks, purchasePrice } from '../lib/investmentRules'
 import { ApiError } from '../types/auth'
 import type {
   CreateMotoPayload,
-  Driver,
-  Investor,
+  DriverTerminationRow,
   MotoDetail,
   MotoFilters,
   MotoStatus,
+  TerminationReason,
   UpdateMotoPayload,
+  VehicleType,
 } from '../types/api'
 
-// ─── Modal wrapper ──────────────────────────────────────────────────────────
+// ─── Helpers de formulaire ──────────────────────────────────────────────────
 
-interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  children: ReactNode
-  wide?: boolean
-}
-
-function Modal({ isOpen, onClose, title, children, wide }: ModalProps) {
-  useEffect(() => {
-    if (!isOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [isOpen, onClose])
-
-  if (!isOpen) return null
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="fleet-modal-title"
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <div
-        className={[
-          'max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900',
-          wide ? 'max-w-2xl' : 'max-w-lg',
-        ].join(' ')}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <h2 id="fleet-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>,
-    document.body,
+function Field(props: { label: ReactNode; htmlFor: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="grid min-w-0 gap-2">
+      <Label htmlFor={props.htmlFor}>{props.label}</Label>
+      {props.children}
+      {props.hint ? <p className="text-xs text-muted-foreground">{props.hint}</p> : null}
+    </div>
   )
 }
 
-function inputCls() {
-  return [
-    'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900',
-    'focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
-    'dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100',
-    'placeholder:text-slate-400 dark:placeholder:text-slate-500',
-  ].join(' ')
+const Optional = () => <span className="font-normal text-muted-foreground">(optionnel)</span>
+
+function FormError({ error }: { error: string | null }) {
+  if (!error) return null
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  )
+}
+
+/** Liste de valeurs texte (ville) ; retombe sur un champ libre si aucune option n'est connue. */
+function OptionField(props: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  placeholder: string
+}) {
+  if (props.options.length === 0) {
+    return (
+      <Input id={props.id} type="text" value={props.value} onChange={(e) => props.onChange(e.target.value)} placeholder={props.placeholder} required />
+    )
+  }
+  return (
+    <Select value={props.value || undefined} onValueChange={props.onChange} required>
+      <SelectTrigger id={props.id} className="w-full">
+        <SelectValue placeholder="Sélectionner" />
+      </SelectTrigger>
+      <SelectContent>
+        {props.options.map((o) => (
+          <SelectItem key={o} value={o}>
+            {o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/** Rappel de la règle des 160 % : prix d'achat financé par les investisseurs et versement hebdomadaire du chauffeur. */
+function targetHint(targetAmount: string) {
+  const target = parseInt(targetAmount, 10)
+  if (!target || target < 1) return "Total remboursé par le chauffeur : 160 % du prix d'achat de la moto."
+  return `Prix d'achat financé par les investisseurs : ${formatXafLabel(purchasePrice(target))} (la cible en représente 160 %).`
+}
+
+/** Versement par défaut : celui des paramètres de la plateforme (plafonné à la cible), sinon la cible répartie sur 32 semaines. */
+function proposedWeekly(target: number, platformWeekly: number) {
+  return platformWeekly > 0 ? Math.min(platformWeekly, target) : defaultWeeklyAmount(target)
+}
+
+/** Versement hebdomadaire retenu : celui saisi, sinon le versement par défaut. */
+function effectiveWeekly(targetAmount: string, weeklyAmount: string, platformWeekly = 0) {
+  const target = parseInt(targetAmount, 10)
+  const weekly = parseInt(weeklyAmount, 10)
+  if (weekly > 0) return weekly
+  return target > 0 ? proposedWeekly(target, platformWeekly) : 0
+}
+
+/** Durée du contrat déduite de la cible et du versement hebdomadaire. */
+function weeklyHint(targetAmount: string, weeklyAmount: string, platformWeekly = 0) {
+  const target = parseInt(targetAmount, 10)
+  const weekly = effectiveWeekly(targetAmount, weeklyAmount, platformWeekly)
+  if (!target || target < 1 || weekly < 1) return 'La durée du contrat est déduite : montant cible ÷ versement par semaine.'
+  if (weekly > target) return 'Le versement hebdomadaire ne peut pas dépasser le montant cible.'
+  const weeks = planWeeks(target, weekly)
+  if (weeks > MAX_PLAN_WEEKS) return `Contrat de ${weeks} semaines : trop long (maximum ${MAX_PLAN_WEEKS}). Augmentez le versement.`
+  const last = target - (weeks - 1) * weekly
+  return `Contrat de ${weeks} semaine${weeks > 1 ? 's' : ''} (${formatXafLabel(target)} ÷ ${formatXafLabel(weekly)})${last < weekly ? ` · dernier versement : ${formatXafLabel(last)}` : ''}.`
+}
+
+/** Erreur de validation du versement hebdomadaire, ou null. */
+function weeklyError(targetAmount: string, weeklyAmount: string, platformWeekly = 0): string | null {
+  const target = parseInt(targetAmount, 10)
+  const weekly = effectiveWeekly(targetAmount, weeklyAmount, platformWeekly)
+  if (weeklyAmount !== '' && !(parseInt(weeklyAmount, 10) >= 1)) return 'Versement hebdomadaire invalide (minimum 1 FCFA)'
+  if (target > 0 && weekly > target) return 'Le versement hebdomadaire ne peut pas dépasser le montant cible'
+  if (target > 0 && weekly > 0 && planWeeks(target, weekly) > MAX_PLAN_WEEKS) {
+    return `Avec ce versement, le contrat durerait plus de ${MAX_PLAN_WEEKS} semaines`
+  }
+  return null
+}
+
+/** Chauffeurs : recherche faite par le serveur. Un chauffeur déjà rattaché à une autre moto n'est pas sélectionnable. */
+function makeFetchDrivers(currentMotoId?: number) {
+  return (search: string) =>
+    listDriversFromApi({ search, limit: 20 }).then((drivers) =>
+      drivers.map((d) => ({
+        id: d.id,
+        label: `${d.fullName} — ${d.activeMoto ? `moto ${d.activeMoto.matricule}` : 'libre'}`,
+        disabled: d.activeMoto != null && d.activeMoto.id !== currentMotoId,
+      })),
+    )
+}
+
+const fetchDrivers = makeFetchDrivers()
+
+function fetchInvestors(search: string) {
+  return listInvestorsFromApi({ search, limit: 20 }).then((investors) =>
+    investors.map((i) => ({ id: i.id, label: i.fullName })),
+  )
+}
+
+// ─── Parts des investisseurs ────────────────────────────────────────────────
+
+export interface PartRow {
+  /** Identifiant de la part existante ; absent pour une nouvelle part. */
+  id?: number
+  /** 0 tant que l'investisseur n'est pas choisi. */
+  investorId: number
+  investorName?: string
+  /** Montant de l'apport, saisi librement à partir de 50 000 XAF. */
+  amount: string
+  /** Date de l'apport d'une part existante. */
+  createdAt?: string
+  /** Part résiliée : lecture seule, elle ne reçoit plus de versements. */
+  closedAt?: string | null
+  closeReason?: TerminationReason | null
+  /** Capital libéré par la résiliation (remboursé ou réaffecté) : il ne compte plus comme financé. */
+  released?: number
+}
+
+const partAmount = (row: PartRow) => parseInt(row.amount, 10) || 0
+
+/** Capital que la part retient encore sur le véhicule : l'apport, moins ce que la résiliation a libéré. */
+const heldAmount = (row: PartRow) => Math.max(partAmount(row) - (row.released ?? 0), 0)
+
+/** Erreur de validation des parts (investisseur choisi, minimum de 50 000 par nouvel apport, total ≤ prix d'achat), ou null. */
+function partsError(rows: PartRow[], targetAmount: number): string | null {
+  if (rows.some((r) => r.investorId < 1)) return 'Choisissez un investisseur pour chaque ligne'
+  if (rows.some((r) => r.id === undefined && partAmount(r) < MIN_INVESTMENT_XAF)) {
+    return `Chaque part doit être d'au moins ${formatXafLabel(MIN_INVESTMENT_XAF)}`
+  }
+  const funded = rows.reduce((sum, r) => sum + heldAmount(r), 0)
+  if (funded > purchasePrice(targetAmount)) {
+    return `${formatXafLabel(funded)} investis pour ${formatXafLabel(purchasePrice(targetAmount))} à financer`
+  }
+  return null
+}
+
+/**
+ * Parts d'une moto : chaque ligne est l'apport d'un investisseur (minimum 50 000 XAF, montant libre).
+ * Un investisseur peut avoir plusieurs parts sur la même moto.
+ */
+function PartsEditor(props: {
+  idPrefix: string
+  targetAmount: number
+  value: PartRow[]
+  onChange: (rows: PartRow[]) => void
+  /** Demande de résiliation du contrat d'une part existante. */
+  onTerminate?: (row: PartRow) => void
+}) {
+  const price = purchasePrice(props.targetAmount)
+  const funded = props.value.reduce((sum, r) => sum + heldAmount(r), 0)
+  const remaining = price - funded
+  const canAdd = price > 0 && remaining >= MIN_INVESTMENT_XAF && props.value.every((r) => r.investorId > 0)
+
+  const update = (index: number, patch: Partial<PartRow>) =>
+    props.onChange(props.value.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+
+  return (
+    <div className="grid min-w-0 gap-3 rounded-md border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Parts des investisseurs</Label>
+        <Badge variant={remaining < 0 ? 'red' : remaining === 0 && price > 0 ? 'green' : 'secondary'}>
+          {formatXafLabel(funded)} / {formatXafLabel(price)} financés
+        </Badge>
+      </div>
+
+      {props.value.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Aucune part : les {formatXafLabel(price)} du prix d&apos;achat restent à financer.
+        </p>
+      ) : null}
+
+      {props.value.map((row, index) =>
+        row.closedAt ? (
+          <div key={row.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm">
+            <span className="min-w-0 truncate">
+              {row.investorName} · <span className="tabular-nums">{formatXafLabel(partAmount(row))}</span>
+            </span>
+            <Badge variant={row.closeReason === 'LOSS' ? 'red' : 'secondary'}>
+              {row.closeReason === 'LOSS' ? 'Perte' : 'Résilié'} le {formatShortDate(row.closedAt)}
+            </Badge>
+            {row.released ? <span className="w-full text-xs text-muted-foreground">Capital libéré : {formatXafLabel(row.released)} (remboursé ou réaffecté)</span> : null}
+          </div>
+        ) : (
+        <div key={row.id ?? `new-${index}`} className="grid min-w-0 gap-1">
+          <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto]">
+            <RemoteSelect
+              id={`${props.idPrefix}-investor-${index}`}
+              aria-label="Investisseur"
+              value={row.investorId}
+              selectedLabel={row.investorName}
+              placeholder="Choisir un investisseur"
+              fetchOptions={fetchInvestors}
+              onChange={(o) => update(index, { investorId: o?.id ?? 0, investorName: o?.label })}
+            />
+            <Input
+              type="number"
+              min={MIN_INVESTMENT_XAF}
+              value={row.amount}
+              onChange={(e) => update(index, { amount: e.target.value })}
+              aria-label="Montant de la part"
+              placeholder="Montant"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Retirer cette part"
+              onClick={() => props.onChange(props.value.filter((_, i) => i !== index))}
+            >
+              <X />
+            </Button>
+          </div>
+          {row.createdAt ? (
+            <p className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+              <span>Apport du {formatShortDate(row.createdAt)}</span>
+              {row.id !== undefined && props.onTerminate ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs text-destructive"
+                  onClick={() => props.onTerminate?.(row)}
+                >
+                  Résilier ce contrat
+                </Button>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+        ),
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!canAdd}
+          onClick={() => props.onChange([...props.value, { investorId: 0, amount: String(Math.min(MIN_INVESTMENT_XAF, remaining)) }])}
+        >
+          <Plus />
+          Ajouter une part
+        </Button>
+        <span className={remaining < 0 ? 'text-xs font-semibold text-destructive' : 'text-xs text-muted-foreground'}>
+          {remaining < 0 ? `${formatXafLabel(-remaining)} en trop` : `Reste à financer : ${formatXafLabel(remaining)}`}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Chaque part est un apport d&apos;au moins {formatXafLabel(MIN_INVESTMENT_XAF)}. Un investisseur peut avoir plusieurs parts sur la même moto.
+      </p>
+    </div>
+  )
 }
 
 // ─── CreateMotoModal ────────────────────────────────────────────────────────
@@ -96,15 +330,19 @@ interface CreateMotoModalProps {
 }
 
 export function CreateMotoModal({ isOpen, onClose, onSuccess, filterOptions }: CreateMotoModalProps) {
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [investors, setInvestors] = useState<Investor[]>([])
-  const [loadingAux, setLoadingAux] = useState(false)
   const [matricule, setMatricule] = useState('')
+  const [vehicleType, setVehicleType] = useState<VehicleType>('MOTO')
+  const [brand, setBrand] = useState('')
   const [model, setModel] = useState('')
+  const [year, setYear] = useState('')
   const [city, setCity] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
+  const [weeklyAmount, setWeeklyAmount] = useState('')
+  // versement par défaut des paramètres de la plateforme (0 = cible ÷ 32)
+  const [platformWeekly, setPlatformWeekly] = useState(0)
   const [driverId, setDriverId] = useState(0)
-  const [investorId, setInvestorId] = useState(0)
+  const [driverName, setDriverName] = useState('')
+  const [partRows, setPartRows] = useState<PartRow[]>([])
   const [imageUrl, setImageUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -112,22 +350,22 @@ export function CreateMotoModal({ isOpen, onClose, onSuccess, filterOptions }: C
   useEffect(() => {
     if (!isOpen) return
     setMatricule('')
+    setVehicleType('MOTO')
+    setBrand('')
     setModel('')
+    setYear('')
     setCity('')
     setTargetAmount('')
+    setWeeklyAmount('')
     setDriverId(0)
-    setInvestorId(0)
+    setDriverName('')
+    setPartRows([])
     setImageUrl('')
     setError(null)
     setSubmitting(false)
-    setLoadingAux(true)
-    Promise.all([listDriversFromApi(), listInvestorsFromApi()])
-      .then(([d, i]) => {
-        setDrivers(d)
-        setInvestors(i)
-      })
-      .catch((err) => setError(userSelectErrorMessage(err)))
-      .finally(() => setLoadingAux(false))
+    getAdminSettings()
+      .then((s) => setPlatformWeekly(s.platform.defaultWeeklyAmount))
+      .catch(() => setPlatformWeekly(0))
   }, [isOpen])
 
   const handleSubmit = async (e: FormEvent) => {
@@ -135,31 +373,27 @@ export function CreateMotoModal({ isOpen, onClose, onSuccess, filterOptions }: C
     setError(null)
 
     const amount = parseInt(targetAmount, 10)
-    if (!matricule.trim()) {
-      setError('Matricule requis')
-      return
-    }
-    if (!model.trim()) {
-      setError('Modèle requis')
-      return
-    }
-    if (!city.trim()) {
-      setError('Ville requise')
-      return
-    }
-    if (!targetAmount || isNaN(amount) || amount < 1) {
-      setError('Montant cible invalide (minimum 1 FCFA)')
-      return
-    }
+    if (!matricule.trim()) return setError('Immatriculation requise')
+    if (year && !(parseInt(year, 10) >= 1980 && parseInt(year, 10) <= 2100)) return setError('Année invalide')
+    if (!city.trim()) return setError('Ville requise')
+    if (!targetAmount || isNaN(amount) || amount < 1) return setError('Montant cible invalide (minimum 1 FCFA)')
+    const weeklyProblem = weeklyError(targetAmount, weeklyAmount, platformWeekly)
+    if (weeklyProblem) return setError(weeklyProblem)
 
     const body: CreateMotoPayload = {
       matricule: matricule.trim(),
-      model: model.trim(),
       city: city.trim(),
+      vehicleType,
       targetAmount: amount,
     }
+    if (brand.trim()) body.brand = brand.trim()
+    if (model.trim()) body.model = model.trim()
+    if (year) body.year = parseInt(year, 10)
+    if (weeklyAmount !== '') body.weeklyAmount = parseInt(weeklyAmount, 10)
     if (driverId > 0) body.driverId = driverId
-    if (investorId > 0) body.investorId = investorId
+    const partsProblem = partsError(partRows, amount)
+    if (partsProblem) return setError(partsProblem)
+    if (partRows.length > 0) body.investors = partRows.map((r) => ({ investorId: r.investorId, amount: partAmount(r) }))
     if (imageUrl.trim()) body.imageUrl = imageUrl.trim()
 
     setSubmitting(true)
@@ -171,158 +405,110 @@ export function CreateMotoModal({ isOpen, onClose, onSuccess, filterOptions }: C
       if (err instanceof ApiError && err.statusCode === 409) {
         setError('Ce matricule existe déjà')
       } else {
-        const msg = err instanceof Error ? err.message : 'Erreur lors de la création'
-        setError(msg)
+        setError(err instanceof Error ? err.message : 'Erreur lors de la création')
       }
     } finally {
       setSubmitting(false)
     }
   }
 
-  const modelOptions = filterOptions?.models ?? []
-  const cityOptions = filterOptions?.cities ?? []
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Ajouter une moto">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Matricule</label>
-          <input
-            type="text"
-            value={matricule}
-            onChange={(e) => setMatricule(e.target.value)}
-            placeholder="LT 9999 X"
-            className={inputCls()}
-            required
+    <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Ajouter un véhicule</DialogTitle>
+          <DialogDescription>Enregistrez une nouvelle moto ou un nouveau taxi dans le parc.</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)] gap-4">
+          <Field label="Immatriculation" htmlFor="new-matricule">
+            <Input id="new-matricule" value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="LT 9999 X" required />
+          </Field>
+
+          <Field label="Type de véhicule" htmlFor="new-type">
+            <Select value={vehicleType} onValueChange={(v) => setVehicleType(v as VehicleType)}>
+              <SelectTrigger id="new-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MOTO">Moto</SelectItem>
+                <SelectItem value="TAXI">Taxi</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-3">
+            <Field label={<>Marque <Optional /></>} htmlFor="new-brand">
+              <Input id="new-brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Toyota" maxLength={60} />
+            </Field>
+            <Field label={<>Modèle <Optional /></>} htmlFor="new-model">
+              <Input id="new-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="Corolla" maxLength={60} />
+            </Field>
+            <Field label={<>Année <Optional /></>} htmlFor="new-year">
+              <Input id="new-year" type="number" min={1980} max={2100} value={year} onChange={(e) => setYear(e.target.value)} placeholder="2024" />
+            </Field>
+          </div>
+
+
+          <Field label="Ville" htmlFor="new-city">
+            <OptionField id="new-city" value={city} onChange={setCity} options={filterOptions?.cities ?? []} placeholder="Douala" />
+          </Field>
+
+          <Field label="Montant cible (XAF)" htmlFor="new-target" hint={targetHint(targetAmount)}>
+            <Input id="new-target" type="number" min={1} value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} placeholder="800000" required />
+          </Field>
+
+          <Field label={<>Versement par semaine (XAF) <Optional /></>} htmlFor="new-weekly" hint={weeklyHint(targetAmount, weeklyAmount, platformWeekly)}>
+            <Input
+              id="new-weekly"
+              type="number"
+              min={1}
+              value={weeklyAmount}
+              onChange={(e) => setWeeklyAmount(e.target.value)}
+              placeholder={parseInt(targetAmount, 10) > 0 ? String(proposedWeekly(parseInt(targetAmount, 10), platformWeekly)) : '25000'}
+            />
+          </Field>
+
+          <Field label={<>Chauffeur <Optional /></>} htmlFor="new-driver">
+            <RemoteSelect
+              id="new-driver"
+              value={driverId}
+              selectedLabel={driverName}
+              placeholder="Aucun"
+              noneLabel="Aucun"
+              fetchOptions={fetchDrivers}
+              onChange={(o) => {
+                setDriverId(o?.id ?? 0)
+                setDriverName(o?.label ?? '')
+              }}
+            />
+          </Field>
+          {driverId > 0 ? <DriverArrearsWarning driverId={driverId} /> : null}
+
+          <PartsEditor
+            idPrefix="new"
+            targetAmount={parseInt(targetAmount, 10) || 0}
+            value={partRows}
+            onChange={setPartRows}
           />
-        </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Modèle</label>
-            {modelOptions.length > 0 ? (
-              <select value={model} onChange={(e) => setModel(e.target.value)} className={inputCls()} required>
-                <option value="">Sélectionner</option>
-                {modelOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="125cc"
-                className={inputCls()}
-                required
-              />
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Ville</label>
-            {cityOptions.length > 0 ? (
-              <select value={city} onChange={(e) => setCity(e.target.value)} className={inputCls()} required>
-                <option value="">Sélectionner</option>
-                {cityOptions.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Douala"
-                className={inputCls()}
-                required
-              />
-            )}
-          </div>
-        </div>
+          <Field label={<>Photo du véhicule <Optional /></>} htmlFor="new-image">
+            <ImageUpload id="new-image" value={imageUrl} onChange={setImageUrl} disabled={submitting} />
+          </Field>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Montant cible (XAF)</label>
-          <input
-            type="number"
-            min={1}
-            value={targetAmount}
-            onChange={(e) => setTargetAmount(e.target.value)}
-            placeholder="5000000"
-            className={inputCls()}
-            required
-          />
-        </div>
+          <FormError error={error} />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Chauffeur <span className="text-slate-400">(optionnel)</span>
-            </label>
-            <select value={driverId} onChange={(e) => setDriverId(Number(e.target.value))} className={inputCls()}>
-              <option value={0}>{loadingAux ? 'Chargement…' : 'Aucun'}</option>
-              {drivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.fullName} — {d.phoneNumber}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Investisseur <span className="text-slate-400">(optionnel)</span>
-            </label>
-            <select value={investorId} onChange={(e) => setInvestorId(Number(e.target.value))} className={inputCls()}>
-              <option value={0}>{loadingAux ? 'Chargement…' : 'Aucun'}</option>
-              {investors.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.fullName}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            URL image <span className="text-slate-400">(optionnel)</span>
-          </label>
-          <input
-            type="url"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://..."
-            className={inputCls()}
-          />
-        </div>
-
-        {error && (
-          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-200">
-            {error}
-          </div>
-        )}
-
-        <div className="flex gap-3 pt-2">
-          <Button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          >
-            Annuler
-          </Button>
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
-          >
-            {submitting ? 'Création…' : 'Créer la moto'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Création…' : 'Créer le véhicule'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -338,26 +524,34 @@ interface MotoDetailModalProps {
 export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: MotoDetailModalProps) {
   const isOpen = motoId != null
   const [moto, setMoto] = useState<MotoDetail | null>(null)
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [investors, setInvestors] = useState<Investor[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [contractBusy, setContractBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // résiliations : conducteur du véhicule, véhicule perdu, ou part d'un investisseur
+  const [terminateDriverOpen, setTerminateDriverOpen] = useState(false)
+  const [lossOpen, setLossOpen] = useState(false)
+  const [terminatePart, setTerminatePart] = useState<PartRow | null>(null)
+  const [terminations, setTerminations] = useState<DriverTerminationRow[]>([])
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const [matricule, setMatricule] = useState('')
+  const [vehicleType, setVehicleType] = useState<VehicleType>('MOTO')
+  const [brand, setBrand] = useState('')
   const [model, setModel] = useState('')
+  const [year, setYear] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
+  const [weeklyAmount, setWeeklyAmount] = useState('')
   const [financedAmount, setFinancedAmount] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [status, setStatus] = useState<MotoStatus>('ACTIVE')
-  const [driverId, setDriverId] = useState<number | null>(null)
-  const [investorId, setInvestorId] = useState<number | null>(null)
+  const [driverId, setDriverId] = useState(0)
+  const [driverName, setDriverName] = useState('')
+  const [partRows, setPartRows] = useState<PartRow[]>([])
   const [city, setCity] = useState('')
   const [lastMaintenanceAt, setLastMaintenanceAt] = useState('')
-
-  const modelOptions = filterOptions?.models ?? []
-  const cityOptions = filterOptions?.cities ?? []
 
   const ownershipPct = useMemo(() => {
     const target = parseInt(targetAmount, 10)
@@ -368,31 +562,41 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
   }, [targetAmount, financedAmount, moto?.ownershipPct])
 
   const statusUi = STATUS_UI[status]
+  // Le chauffeur déjà affecté à cette moto reste sélectionnable.
+  const fetchEditDrivers = useMemo(() => makeFetchDrivers(motoId ?? undefined), [motoId])
 
   useEffect(() => {
     if (!isOpen || motoId == null) return
     setMoto(null)
     setError(null)
     setLoading(true)
-    Promise.all([getMoto(motoId), listDriversFromApi(), listInvestorsFromApi()])
-      .then(([detail, d, i]) => {
+    getMoto(motoId)
+      .then((detail) => {
         setMoto(detail)
-        setDrivers(d)
-        setInvestors(i)
         setMatricule(detail.matricule)
-        setModel(detail.model)
+        setVehicleType(detail.vehicleType)
+        setBrand(detail.brand ?? '')
+        setModel(detail.model ?? '')
+        setYear(detail.year ? String(detail.year) : '')
         setTargetAmount(String(detail.targetAmount))
+        setWeeklyAmount(String(detail.weeklyAmount))
         setFinancedAmount(String(detail.financedAmount))
         setImageUrl(detail.imageUrl ?? '')
         setStatus(detail.status)
-        setDriverId(detail.driver?.id ?? null)
-        setInvestorId(detail.investor?.id ?? null)
+        setDriverId(detail.driver?.id ?? 0)
+        setDriverName(detail.driver?.fullName ?? '')
+        setPartRows(
+          detail.investors.map((i) => ({ id: i.id, investorId: i.investorId, investorName: i.fullName, amount: String(i.amount), createdAt: i.createdAt, closedAt: i.closedAt, closeReason: i.closeReason, released: i.releasedAmount })),
+        )
         setCity(detail.city)
         setLastMaintenanceAt(detail.lastMaintenanceAt ?? '')
       })
-      .catch((err) => setError(userSelectErrorMessage(err)))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Impossible de charger la moto.'))
       .finally(() => setLoading(false))
-  }, [isOpen, motoId])
+    getDriverTerminations(motoId)
+      .then(setTerminations)
+      .catch(() => setTerminations([]))
+  }, [isOpen, motoId, refreshKey])
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
@@ -402,41 +606,32 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
     const target = parseInt(targetAmount, 10)
     const financed = parseInt(financedAmount, 10)
 
-    if (!matricule.trim()) {
-      setError('Matricule requis')
-      return
-    }
-    if (!model.trim()) {
-      setError('Modèle requis')
-      return
-    }
-    if (!city.trim()) {
-      setError('Ville requise')
-      return
-    }
-    if (!targetAmount || isNaN(target) || target < 1) {
-      setError('Montant cible invalide (minimum 1 FCFA)')
-      return
-    }
-    if (financedAmount === '' || isNaN(financed) || financed < 0) {
-      setError('Montant financé invalide')
-      return
-    }
-    if (financed > target) {
-      setError('Le montant financé ne peut pas dépasser le montant cible')
-      return
-    }
+    if (!matricule.trim()) return setError('Immatriculation requise')
+    if (year && !(parseInt(year, 10) >= 1980 && parseInt(year, 10) <= 2100)) return setError('Année invalide')
+    if (!city.trim()) return setError('Ville requise')
+    if (!targetAmount || isNaN(target) || target < 1) return setError('Montant cible invalide (minimum 1 FCFA)')
+    const weeklyProblem = weeklyError(targetAmount, weeklyAmount)
+    if (weeklyProblem) return setError(weeklyProblem)
+    if (financedAmount === '' || isNaN(financed) || financed < 0) return setError('Montant financé invalide')
+    if (financed > target) return setError('Le montant financé ne peut pas dépasser le montant cible')
+
+    const partsProblem = partsError(partRows, target)
+    if (partsProblem) return setError(partsProblem)
 
     const body: UpdateMotoPayload = {
       matricule: matricule.trim(),
-      model: model.trim(),
       city: city.trim(),
+      vehicleType,
+      brand: brand.trim(),
+      model: model.trim(),
+      ...(year ? { year: parseInt(year, 10) } : {}),
       targetAmount: target,
+      weeklyAmount: effectiveWeekly(targetAmount, weeklyAmount),
       financedAmount: financed,
-      imageUrl: imageUrl.trim() || undefined,
+      imageUrl: imageUrl.trim() || null,
       status,
-      driverId,
-      investorId,
+      driverId: driverId > 0 ? driverId : null,
+      investors: partRows.map((r) => ({ id: r.id, investorId: r.investorId, amount: partAmount(r) })),
       lastMaintenanceAt: lastMaintenanceAt || null,
     }
 
@@ -449,8 +644,7 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
       if (err instanceof ApiError && err.statusCode === 409) {
         setError('Ce matricule existe déjà')
       } else {
-        const msg = err instanceof Error ? err.message : 'Erreur lors de la mise à jour'
-        setError(msg)
+        setError(err instanceof Error ? err.message : 'Erreur lors de la mise à jour')
       }
     } finally {
       setSubmitting(false)
@@ -459,11 +653,6 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
 
   const handleDelete = async () => {
     if (!moto) return
-    const confirmed = window.confirm(
-      `Retirer la moto # ${matricule} du parc ? Cette action est irréversible.`,
-    )
-    if (!confirmed) return
-
     setError(null)
     setDeleting(true)
     try {
@@ -472,15 +661,11 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
       onClose()
     } catch (err: unknown) {
       if (err instanceof ApiError && err.statusCode === 409) {
-        setError(
-          err.message ||
-            'Impossible de supprimer : incidents ouverts liés à cette moto',
-        )
+        setError(err.message || 'Impossible de supprimer : incidents ouverts liés à ce véhicule')
       } else if (err instanceof ApiError && err.statusCode === 404) {
-        setError('Moto introuvable')
+        setError('Véhicule introuvable')
       } else {
-        const msg = err instanceof Error ? err.message : 'Erreur lors de la suppression'
-        setError(msg)
+        setError(err instanceof Error ? err.message : 'Erreur lors de la suppression')
       }
     } finally {
       setDeleting(false)
@@ -492,285 +677,379 @@ export function MotoDetailModal({ motoId, onClose, onSuccess, filterOptions }: M
   const displayTarget = parseInt(targetAmount, 10)
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Détails de la moto" wide>
-      {loading ? (
-        <p className="text-sm text-slate-500">Chargement…</p>
-      ) : error && !moto ? (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-200">
-          {error}
-        </div>
-      ) : moto ? (
-        <div className="space-y-6">
-          <div className="relative h-40 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-            <img
-              src={previewImage}
-              alt={`Moto ${matricule}`}
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                ;(e.target as HTMLImageElement).src = DEFAULT_MOTO_IMAGE
-              }}
-            />
-            <div className="absolute right-3 top-3">
-              <Badge variant={statusUi.variant} className="shadow-sm">
-                {statusUi.label}
-              </Badge>
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Détails du véhicule</DialogTitle>
+            <DialogDescription>Consultez l&apos;état du véhicule et modifiez ses informations.</DialogDescription>
+          </DialogHeader>
+
+          {loading ? (
+            <div className="space-y-3" aria-busy="true">
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
             </div>
-            <div className="absolute bottom-3 left-3">
-              <span className="inline-flex items-center rounded-full bg-slate-900/75 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm">
-                # {matricule}
-              </span>
-            </div>
+          ) : error && !moto ? (
+            <FormError error={error} />
+          ) : moto ? (
+            <div className="space-y-6">
+              <div className="relative h-40 overflow-hidden rounded-md bg-muted">
+                <img
+                  src={previewImage}
+                  alt={`${VEHICLE_TYPE_LABEL[vehicleType]} ${matricule}`}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = DEFAULT_MOTO_IMAGE
+                  }}
+                />
+                <Badge variant={`solid-${statusUi.variant}`} className="absolute right-3 top-3">
+                  {statusUi.label}
+                </Badge>
+                <Badge className="absolute bottom-3 left-3 bg-foreground text-background">#{matricule}</Badge>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-muted-foreground">Progression propriété</span>
+                  <span className="font-bold text-success-foreground">{ownershipPct}%</span>
+                </div>
+                <Progress value={Math.min(ownershipPct, 100)} className="h-2" />
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  {formatXafLabel(isNaN(displayFinanced) ? moto.financedAmount : displayFinanced)} /{' '}
+                  {formatXafLabel(isNaN(displayTarget) ? moto.targetAmount : displayTarget)}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+                <span className="text-muted-foreground">Calendrier</span>
+                <span className="text-right font-medium">
+                  {moto.plannedWeeks} semaines
+                  {moto.extraWeeks > 0 ? ` (dont +${moto.extraWeeks} suite à des versements partiels)` : ''}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+                <span className="text-muted-foreground">Chauffeur</span>
+                <span className="text-right font-medium">
+                  {moto.driver ? `${moto.driver.fullName} — ${moto.driver.phoneNumber}` : 'Aucun chauffeur affecté'}
+                </span>
+              </div>
+
+              {(moto.openIncidents?.length ?? 0) > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Incidents ouverts</h3>
+                  <ul className="space-y-2">
+                    {moto.openIncidents.map((inc) => (
+                      <li key={inc.id} className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm">
+                        <div className="font-medium text-danger-foreground">{inc.type}</div>
+                        <div className="text-xs text-muted-foreground">{inc.description}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{formatShortDate(inc.createdAt)}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {(moto.recentPayments?.length ?? 0) > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Paiements récents (conducteur)</h3>
+                  <ul className="space-y-1.5">
+                    {moto.recentPayments.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                        <span className="text-muted-foreground">
+                          {p.type === 'PAYMENT' ? 'Paiement' : 'Dépense'} — {p.status}
+                        </span>
+                        <span className="font-semibold tabular-nums">{formatXafLabel(p.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <Separator />
+
+              <form onSubmit={handleSave} className="grid grid-cols-[minmax(0,1fr)] gap-4">
+                <h3 className="text-sm font-semibold">Modifier</h3>
+
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[400px]:grid-cols-2">
+                  <Field label="Immatriculation" htmlFor="edit-matricule">
+                    <Input id="edit-matricule" value={matricule} onChange={(e) => setMatricule(e.target.value)} required />
+                  </Field>
+                  <Field label="Ville" htmlFor="edit-city">
+                    <OptionField id="edit-city" value={city} onChange={setCity} options={filterOptions?.cities ?? []} placeholder="Douala" />
+                  </Field>
+                </div>
+
+          <Field label="Type de véhicule" htmlFor="edit-type">
+            <Select value={vehicleType} onValueChange={(v) => setVehicleType(v as VehicleType)}>
+              <SelectTrigger id="edit-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MOTO">Moto</SelectItem>
+                <SelectItem value="TAXI">Taxi</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-3">
+            <Field label={<>Marque <Optional /></>} htmlFor="edit-brand">
+              <Input id="edit-brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Toyota" maxLength={60} />
+            </Field>
+            <Field label={<>Modèle <Optional /></>} htmlFor="edit-model">
+              <Input id="edit-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="Corolla" maxLength={60} />
+            </Field>
+            <Field label={<>Année <Optional /></>} htmlFor="edit-year">
+              <Input id="edit-year" type="number" min={1980} max={2100} value={year} onChange={(e) => setYear(e.target.value)} placeholder="2024" />
+            </Field>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-slate-500">Progression Propriété</span>
-              <span className="font-bold text-blue-600 dark:text-blue-300">{ownershipPct}%</span>
-            </div>
-            <Progress value={ownershipPct} className="h-2" />
-            <div className="text-xs text-slate-400">
-              {formatXafLabel(isNaN(displayFinanced) ? moto.financedAmount : displayFinanced)} /{' '}
-              {formatXafLabel(isNaN(displayTarget) ? moto.targetAmount : displayTarget)}
-            </div>
-          </div>
 
-          {(moto.openIncidents?.length ?? 0) > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Incidents ouverts</h3>
-              <ul className="space-y-2">
-                {moto.openIncidents.map((inc) => (
-                  <li
-                    key={inc.id}
-                    className="rounded-xl border border-red-100 bg-red-50/50 px-3 py-2 text-sm dark:border-red-900/40 dark:bg-red-950/20"
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[400px]:grid-cols-2">
+                  <Field label="Montant cible (XAF)" htmlFor="edit-target" hint={targetHint(targetAmount)}>
+                    <Input id="edit-target" type="number" min={1} value={targetAmount} onChange={(e) => setTargetAmount(e.target.value)} required />
+                  </Field>
+
+                  <Field label="Versement par semaine (XAF)" htmlFor="edit-weekly" hint={weeklyHint(targetAmount, weeklyAmount)}>
+                    <Input id="edit-weekly" type="number" min={1} value={weeklyAmount} onChange={(e) => setWeeklyAmount(e.target.value)} required />
+                  </Field>
+                  <Field label="Montant financé (XAF)" htmlFor="edit-financed">
+                    <Input id="edit-financed" type="number" min={0} value={financedAmount} onChange={(e) => setFinancedAmount(e.target.value)} required />
+                  </Field>
+                </div>
+
+                <Field label={<>Photo du véhicule <Optional /></>} htmlFor="edit-image">
+                  <ImageUpload id="edit-image" value={imageUrl} onChange={setImageUrl} />
+                </Field>
+
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[400px]:grid-cols-2">
+                  <Field label="Statut" htmlFor="edit-status">
+                    <Select value={status} onValueChange={(v) => setStatus(v as MotoStatus)}>
+                      <SelectTrigger id="edit-status" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVE">Actif</SelectItem>
+                        <SelectItem value="BROKEN">En panne</SelectItem>
+                        <SelectItem value="STOLEN">Indisponible</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+
+                {moto.driver ? null : (
+                  <Field
+                    label="Affecter un chauffeur"
+                    htmlFor="edit-driver"
+                    hint={`Nouvelle tournée : le chauffeur reprend le reste à financer (${formatXafLabel(Math.max(moto.targetAmount - moto.financedAmount, 0))}).`}
                   >
-                    <div className="font-medium text-red-700 dark:text-red-300">{inc.type}</div>
-                    <div className="text-xs text-slate-600 dark:text-slate-400">{inc.description}</div>
-                    <div className="mt-1 text-xs text-slate-400">{formatShortDate(inc.createdAt)}</div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {(moto.recentPayments?.length ?? 0) > 0 ? (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                Paiements récents (chauffeur)
-              </h3>
-              <ul className="space-y-1.5">
-                {moto.recentPayments.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm dark:border-slate-800"
-                  >
-                    <span className="text-slate-600 dark:text-slate-300">
-                      {p.type === 'PAYMENT' ? 'Paiement' : 'Dépense'} — {p.status}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-50">
-                      {formatXafLabel(p.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          <form onSubmit={handleSave} className="space-y-4 border-t border-slate-100 pt-4 dark:border-slate-800">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50">Modifier</h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Matricule</label>
-                <input
-                  type="text"
-                  value={matricule}
-                  onChange={(e) => setMatricule(e.target.value)}
-                  className={inputCls()}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Modèle</label>
-                {modelOptions.length > 0 ? (
-                  <select value={model} onChange={(e) => setModel(e.target.value)} className={inputCls()} required>
-                    <option value="">Sélectionner</option>
-                    {modelOptions.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className={inputCls()}
-                    required
-                  />
+                    <RemoteSelect
+                      id="edit-driver"
+                      value={driverId}
+                      selectedLabel={driverName}
+                      placeholder="Aucun"
+                      noneLabel="Aucun"
+                      fetchOptions={fetchEditDrivers}
+                      onChange={(o) => {
+                        setDriverId(o?.id ?? 0)
+                        setDriverName(o?.label ?? '')
+                      }}
+                    />
+                  </Field>
                 )}
-              </div>
-            </div>
+                {moto.driver || driverId < 1 ? null : <DriverArrearsWarning driverId={driverId} />}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Montant cible (XAF)</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={targetAmount}
-                  onChange={(e) => setTargetAmount(e.target.value)}
-                  className={inputCls()}
-                  required
+                {moto.driver ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={contractBusy}
+                      onClick={() => {
+                        setContractBusy(true)
+                        void downloadContract(`/admin/contracts/driver/${moto.id}`).finally(() => setContractBusy(false))
+                      }}
+                    >
+                      <FileText />
+                      {contractBusy ? 'Génération du contrat…' : 'Contrat du chauffeur (PDF)'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={contractBusy}
+                      onClick={() => {
+                        setContractBusy(true)
+                        void printContract(`/admin/contracts/driver/${moto.id}`).finally(() => setContractBusy(false))
+                      }}
+                    >
+                      <Printer />
+                      Imprimer
+                    </Button>
+                  </div>
+                ) : null}
+
+                <div className="grid min-w-0 gap-3 rounded-md border p-3" data-testid="contract-actions">
+                  <Label>Contrats et tournée</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {moto.driver
+                      ? `Si le conducteur ne peut plus rouler, résiliez son contrat : sa tournée s'arrête et le véhicule peut être affecté à un autre conducteur.`
+                      : 'Aucun conducteur : le véhicule ne génère plus de revenus. Affectez-le à un nouveau conducteur pour démarrer une nouvelle tournée.'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {moto.driver ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setTerminateDriverOpen(true)}
+                      >
+                        <UserMinus />
+                        Résilier le contrat du conducteur
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setLossOpen(true)}
+                    >
+                      <Ban />
+                      Classer le véhicule en perte
+                    </Button>
+                  </div>
+                  {terminations.length > 0 ? (
+                    <div className="grid gap-1.5">
+                      <h4 className="text-xs font-semibold">Conducteurs précédents</h4>
+                      <ul className="space-y-1.5" aria-label="Conducteurs dont le contrat a été résilié">
+                        {terminations.map((t) => (
+                          <li key={t.id} className="rounded-md border px-3 py-2 text-xs">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-semibold">{t.driver.fullName}</span>
+                              <span className="text-muted-foreground">Résilié le {formatShortDate(t.terminatedAt)} · {REASON_LABEL[t.reason].toLowerCase()}</span>
+                            </div>
+                            <div className="mt-0.5 text-muted-foreground">
+                              Versé {formatXafLabel(t.paidAmount)}
+                              {t.arrearsAmount > 0 ? ` · impayé à la résiliation ${formatXafLabel(t.arrearsAmount)} (${t.lateWeeks} sem.)` : ''}
+                              {` · reste à financer ${formatXafLabel(t.remainingAmount)}`}
+                            </div>
+                            {t.note ? <div className="mt-0.5 italic text-muted-foreground">{t.note}</div> : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+
+                <PartsEditor
+                  idPrefix="edit"
+                  targetAmount={parseInt(targetAmount, 10) || 0}
+                  value={partRows}
+                  onChange={setPartRows}
+                  onTerminate={setTerminatePart}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Montant financé (XAF)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={financedAmount}
-                  onChange={(e) => setFinancedAmount(e.target.value)}
-                  className={inputCls()}
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                URL image <span className="text-slate-400">(optionnel)</span>
-              </label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-                className={inputCls()}
-              />
-            </div>
+                <Field label="Dernier entretien" htmlFor="edit-maintenance">
+                  <Input id="edit-maintenance" type="date" value={lastMaintenanceAt} onChange={(e) => setLastMaintenanceAt(e.target.value)} />
+                </Field>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Statut</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as MotoStatus)}
-                  className={inputCls()}
-                >
-                  <option value="ACTIVE">Actif</option>
-                  <option value="BROKEN">En panne</option>
-                  <option value="STOLEN">Indisponible</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Ville</label>
-                {cityOptions.length > 0 ? (
-                  <select value={city} onChange={(e) => setCity(e.target.value)} className={inputCls()} required>
-                    <option value="">Sélectionner</option>
-                    {cityOptions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className={inputCls()}
-                    required
-                  />
-                )}
-              </div>
-            </div>
+                <FormError error={error} />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Chauffeur</label>
-                <select
-                  value={driverId ?? 0}
-                  onChange={(e) => {
-                    const v = Number(e.target.value)
-                    setDriverId(v > 0 ? v : null)
-                  }}
-                  className={inputCls()}
-                >
-                  <option value={0}>Aucun</option>
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.fullName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Investisseur</label>
-                <select
-                  value={investorId ?? 0}
-                  onChange={(e) => {
-                    const v = Number(e.target.value)
-                    setInvestorId(v > 0 ? v : null)
-                  }}
-                  className={inputCls()}
-                >
-                  <option value={0}>Aucun</option>
-                  {investors.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.fullName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={onClose}>
+                    Fermer
+                  </Button>
+                  <Button type="submit" disabled={submitting || deleting}>
+                    {submitting ? 'Enregistrement…' : 'Enregistrer'}
+                  </Button>
+                </DialogFooter>
+              </form>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Dernier entretien</label>
-              <input
-                type="date"
-                value={lastMaintenanceAt}
-                onChange={(e) => setLastMaintenanceAt(e.target.value)}
-                className={inputCls()}
-              />
-            </div>
+              <Separator />
 
-            {error ? (
-              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-950/40 dark:text-red-200">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="flex gap-3">
               <Button
                 type="button"
-                onClick={onClose}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                variant="outline"
+                className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={deleting || submitting || loading}
+                onClick={() => setConfirmDelete(true)}
               >
-                Fermer
-              </Button>
-              <Button
-                type="submit"
-                disabled={submitting || deleting}
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
-              >
-                {submitting ? 'Enregistrement…' : 'Enregistrer'}
+                {deleting ? 'Suppression…' : 'Retirer du parc'}
               </Button>
             </div>
-          </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
-          <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
-            <Button
-              type="button"
-              disabled={deleting || submitting || loading}
-              onClick={() => void handleDelete()}
-              className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50"
+      <TerminationDialog
+        open={terminateDriverOpen}
+        title="Résilier le contrat du conducteur ?"
+        description={`La tournée de ${moto?.driver?.fullName ?? 'ce conducteur'} s'arrête : le véhicule n'a plus de conducteur et peut être affecté à un autre. Les versements déjà faits restent acquis ; les impayés sont conservés dans l'historique.`}
+        reasons={DRIVER_REASONS}
+        confirmLabel="Résilier le contrat"
+        onClose={() => setTerminateDriverOpen(false)}
+        onConfirm={async ({ reason, note }) => {
+          if (!moto) return
+          const res = await terminateDriverContract(moto.id, { reason, ...(note ? { note } : {}) })
+          toast.success(`Contrat de ${res.driver.fullName} résilié. Reste à financer : ${formatXafLabel(res.remainingAmount)}.`)
+          setTerminateDriverOpen(false)
+          setRefreshKey((k) => k + 1)
+          onSuccess()
+        }}
+      />
+
+      <TerminationDialog
+        open={lossOpen}
+        title="Classer le véhicule en perte ?"
+        description="Le véhicule ne peut plus tourner : le contrat du conducteur et ceux de tous les investisseurs prennent fin, et le capital qu'ils n'ont pas récupéré est classé en perte. Cette action est définitive."
+        reasons={[]}
+        confirmLabel="Classer en perte"
+        onClose={() => setLossOpen(false)}
+        onConfirm={async ({ note }) => {
+          if (!moto) return
+          const res = await classifyVehicleLoss(moto.id, { ...(note ? { note } : {}), vehicleStatus: 'STOLEN' })
+          toast.success(`Véhicule classé en perte : ${res.partsClosed} part(s) résiliée(s), ${formatXafLabel(res.lossTotal)} de capital non récupéré.`)
+          setLossOpen(false)
+          setRefreshKey((k) => k + 1)
+          onSuccess()
+        }}
+      />
+
+      <InvestorTerminationDialog
+        investmentId={terminatePart?.id ?? null}
+        onClose={() => setTerminatePart(null)}
+        onDone={(res) => {
+          toast.success(investorResultMessage(res))
+          setTerminatePart(null)
+          setRefreshKey((k) => k + 1)
+          onSuccess()
+        }}
+      />
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirer le véhicule #{matricule} du parc ?</AlertDialogTitle>
+            <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDelete(false)
+                void handleDelete()
+              }}
             >
-              {deleting ? 'Suppression…' : 'Retirer du parc'}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </Modal>
+              Retirer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
