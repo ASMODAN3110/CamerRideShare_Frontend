@@ -1,36 +1,24 @@
 import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { resolveIncident } from '@/services/incidentsService'
 import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
+  CheckCircle2,
   ChevronRight,
-  CircleDot,
   CreditCard,
-  Gauge,
-  MapPin,
   DollarSign,
+  MapPin,
+  Minus,
   TrendingDown,
   TrendingUp,
   Users,
 } from 'lucide-react'
-import {
-  CartesianGrid,
-  Cell,
-  Label,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  LineChart as RechartsLineChart,
-  Line,
-} from 'recharts'
-import Sidebar from '../components/Sidebar'
-import { ParticleHover, SpotlightSection } from '../components/MagicBento'
-import { PaymentModal, IncidentModal, InvitationModal } from '../components/ActionModals'
-import { useAdminDashboard } from '../hooks/useAdminDashboard'
+import { Label, Pie, PieChart } from 'recharts'
+import AdminLayout from '@/components/admin/AdminLayout'
+import { PaymentModal, IncidentModal, InvitationModal } from '@/components/ActionModals'
+import { useAdminDashboard } from '@/hooks/useAdminDashboard'
 import {
   deltaPctTone,
   formatDeltaPct,
@@ -39,156 +27,134 @@ import {
   formatXaf,
   formatXafLabel,
   initials,
-} from '../lib/format'
-import type { Alert, DashboardOverview, Transaction } from '../types/api'
-import { Button } from '../components/ui/button'
-import { Badge } from '../components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Progress } from '../components/ui/progress'
-import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
+} from '@/lib/format'
+import type { Alert as AlertItem, DashboardOverview, Transaction } from '@/types/api'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
-type Role = 'patron' | 'investisseur' | 'conducteur'
-
-function TopStatCard(props: {
+function StatCard(props: {
   title: string
   value: string
   delta: string
   deltaTone: 'positive' | 'negative' | 'neutral'
   Icon: LucideIcon
 }) {
-  const tone = props.deltaTone
-  const deltaCls =
-    tone === 'positive'
-      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
-      : tone === 'negative'
-        ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200'
-        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-  const DeltaIcon = tone === 'negative' ? TrendingDown : TrendingUp
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900/40">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-xs font-medium text-slate-500">{props.title}</div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">{props.value}</div>
-          <div className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${deltaCls}`}>
-            <DeltaIcon className="mr-1 h-3 w-3" />
-            {props.delta}
-          </div>
-        </div>
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-200">
-          <props.Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function Tabs(props: { role: Role; onChange: (r: Role) => void }) {
-  const tabs: Array<{ id: Role; label: string; icon: LucideIcon }> = [
-    { id: 'patron', label: 'Grand Patron', icon: CircleDot },
-    { id: 'investisseur', label: 'Investisseur', icon: CreditCard },
-    { id: 'conducteur', label: 'Conducteur', icon: Gauge },
-  ]
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {tabs.map((t) => {
-        const Icon = t.icon
-        const active = t.id === props.role
-        return (
-          <Button
-            key={t.id}
-            type="button"
-            onClick={() => props.onChange(t.id)}
-            className={[
-              'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition',
-              active
-                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
-                : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800',
-            ].join(' ')}
-          >
-            <Icon className="h-4 w-4" />
-            {t.label}
-          </Button>
-        )
-      })}
-    </div>
-  )
-}
-
-function EtatParcDonutCard(props: { fleetStatus: DashboardOverview['fleetStatus']; total: number }) {
-  const parc = {
-    actif: props.fleetStatus.active,
-    vole: props.fleetStatus.stolen,
-    panne: props.fleetStatus.broken,
-  }
-  const total = props.total || parc.actif + parc.vole + parc.panne
-  const actifPct = total > 0 ? Math.round((parc.actif / total) * 100) : 0
-
-  const data = useMemo(
-    () => [
-      { name: 'Actif (En route)', value: parc.actif, color: '#2563eb' },
-      { name: 'Volées / Perdues', value: parc.vole, color: '#ef4444' },
-      { name: 'En panne', value: parc.panne, color: '#f97316' },
-    ],
-    [parc.actif, parc.panne, parc.vole],
-  )
+  const DeltaIcon =
+    props.deltaTone === 'negative' ? TrendingDown : props.deltaTone === 'positive' ? TrendingUp : Minus
+  const variant = props.deltaTone === 'positive' ? 'green' : props.deltaTone === 'negative' ? 'red' : 'secondary'
 
   return (
     <Card>
-      <CardHeader className="p-5 pb-3">
-        <CardTitle className="text-base">État du Parc</CardTitle>
-        <div className="mt-1 text-sm font-medium text-slate-500">Suivi en temps réel de {total} motos</div>
-      </CardHeader>
-
-      <CardContent className="pt-0">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-44 w-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Tooltip content={() => null} />
-                <Pie
-                  data={data}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={70}
-                  outerRadius={92}
-                  startAngle={90}
-                  endAngle={-270}
-                  stroke="none"
-                >
-                  {data.map((d) => (
-                    <Cell key={d.name} fill={d.color} />
-                  ))}
-                  <Label
-                    position="center"
-                    content={() => (
-                      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-900 dark:fill-slate-50">
-                        <tspan fontSize="20" fontWeight="800">
-                          {actifPct}% Actif
-                        </tspan>
-                      </text>
-                    )}
-                  />
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+      <CardHeader>
+        <CardDescription>{props.title}</CardDescription>
+        <CardTitle className="truncate text-2xl font-extrabold tabular-nums sm:text-3xl">{props.value}</CardTitle>
+        <CardAction>
+          <div className="flex size-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <props.Icon className="size-5" />
           </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Badge variant={variant}>
+          <DeltaIcon />
+          {props.delta}
+        </Badge>
+        <span className="text-xs text-muted-foreground">vs mois dernier</span>
+      </CardContent>
+    </Card>
+  )
+}
 
-          <ul className="w-full space-y-1 text-sm">
-            {data.map((d) => (
-              <li key={d.name} className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-                  <span className="truncate text-slate-700 dark:text-slate-200">{d.name}</span>
-                </div>
-                <span className="flex-none font-semibold text-slate-900 dark:text-slate-50">{d.value}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+const fleetChartConfig = {
+  actif: { label: 'Actif (en route)', color: 'var(--chart-1)' },
+  panne: { label: 'En panne', color: 'var(--chart-2)' },
+  vole: { label: 'Volées / perdues', color: 'var(--chart-3)' },
+} satisfies ChartConfig
+
+function EtatParcDonutCard(props: { fleetStatus: DashboardOverview['fleetStatus']; total: number }) {
+  const { active, broken, stolen } = props.fleetStatus
+  const total = props.total || active + broken + stolen
+  const actifPct = total > 0 ? Math.round((active / total) * 100) : 0
+
+  const data = useMemo(
+    () => [
+      { status: 'actif', value: active, fill: 'var(--color-actif)' },
+      { status: 'panne', value: broken, fill: 'var(--color-panne)' },
+      { status: 'vole', value: stolen, fill: 'var(--color-vole)' },
+    ],
+    [active, broken, stolen],
+  )
+
+  return (
+    <Card className="h-full min-w-0">
+      <CardHeader>
+        <CardTitle>État du parc</CardTitle>
+        <CardDescription>Suivi en temps réel de {total} véhicules</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col items-center justify-center gap-5">
+        <ChartContainer config={fleetChartConfig} className="mx-auto aspect-square w-full max-w-64">
+          <PieChart>
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="status" />} />
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="status"
+              innerRadius={78}
+              outerRadius={112}
+              strokeWidth={4}
+              paddingAngle={data.filter((d) => d.value > 0).length > 1 ? 2 : 0}
+              startAngle={90}
+              endAngle={-270}
+            >
+              <Label
+                content={({ viewBox }) => {
+                  if (!viewBox || !('cx' in viewBox)) return null
+                  return (
+                    <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                      <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 8} className="fill-foreground text-4xl font-extrabold">
+                        {actifPct}%
+                      </tspan>
+                      <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 20} className="fill-muted-foreground text-sm">
+                        Actif
+                      </tspan>
+                    </text>
+                  )
+                }}
+              />
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+
+        <ul className="w-full max-w-sm space-y-2 text-sm">
+          {data.map((d) => (
+            <li key={d.status} className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <span
+                  className="size-2.5 rounded-[3px]"
+                  style={{ backgroundColor: fleetChartConfig[d.status as keyof typeof fleetChartConfig].color }}
+                />
+                {fleetChartConfig[d.status as keyof typeof fleetChartConfig].label}
+              </span>
+              <span className="font-semibold tabular-nums">{d.value}</span>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   )
@@ -196,105 +162,86 @@ function EtatParcDonutCard(props: { fleetStatus: DashboardOverview['fleetStatus'
 
 function TresorerieCard(props: { treasury: DashboardOverview['treasuryWeekly'] }) {
   const pct =
-    props.treasury.target > 0
-      ? Math.round((props.treasury.collected / props.treasury.target) * 100)
-      : 0
+    props.treasury.target > 0 ? Math.round((props.treasury.collected / props.treasury.target) * 100) : 0
 
   return (
     <Card>
-      <CardHeader className="p-5 pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <CardTitle className="text-base">Trésorerie Hebdomadaire</CardTitle>
-            <div className="mt-1 text-sm font-medium text-slate-500">
-              {formatPeriod(props.treasury.periodStart, props.treasury.periodEnd)}
-            </div>
+      <CardHeader>
+        <CardTitle>Trésorerie hebdomadaire</CardTitle>
+        <CardDescription>{formatPeriod(props.treasury.periodStart, props.treasury.periodEnd)}</CardDescription>
+        <CardAction className="col-start-1 row-start-3 justify-self-start text-left sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:justify-self-end sm:text-right">
+          <div className="text-sm font-extrabold tabular-nums sm:text-lg">
+            {formatXaf(props.treasury.collected, true)} / {formatXaf(props.treasury.target, true)} XAF
           </div>
-          <div className="text-right">
-            <div className="text-lg font-bold text-slate-900 dark:text-slate-50">
-              {formatXaf(props.treasury.collected, true)} / {formatXaf(props.treasury.target, true)} XAF
-            </div>
-            <div className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-300">{pct}% Recouvré</div>
-          </div>
-        </div>
+          <div className="text-sm font-semibold text-success-foreground">{pct}% recouvré</div>
+        </CardAction>
       </CardHeader>
-
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          <Progress value={pct} className="h-4" aria-label="Progress trésorerie" />
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-            <span>0 XAF</span>
-            <span className="text-slate-600 dark:text-slate-300">
-              Objectif: {formatXafLabel(props.treasury.target, true)}
-            </span>
-          </div>
+      <CardContent className="space-y-2">
+        <Progress value={Math.min(pct, 100)} className="h-3" aria-label="Progression de la trésorerie" />
+        <div className="flex justify-between text-xs font-medium text-muted-foreground">
+          <span>0 XAF</span>
+          <span>Objectif : {formatXafLabel(props.treasury.target, true)}</span>
         </div>
       </CardContent>
     </Card>
   )
 }
 
-function AlertesCard(props: { alerts: Alert[]; onViewIncident: (alert: Alert) => void }) {
+function AlertesCard(props: { alerts: AlertItem[]; onViewIncident: (alert: AlertItem) => void }) {
+  const count = props.alerts?.length ?? 0
+
   return (
     <Card>
-      <CardHeader className="p-5 pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div>
-              <CardTitle className="text-base">Alertes Critiques</CardTitle>
-            </div>
-          </div>
-          <Badge variant="red" className="px-3 py-1 text-xs">
-            {props.alerts?.length ?? 0} Priorité{(props.alerts?.length ?? 0) !== 1 ? 's' : ''} Haute{(props.alerts?.length ?? 0) !== 1 ? 's' : ''}
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+            <AlertTriangle className="size-4" />
+          </span>
+          Alertes critiques
+        </CardTitle>
+        <CardAction>
+          <Badge variant="red">
+            {count} priorité{count !== 1 ? 's' : ''} haute{count !== 1 ? 's' : ''}
           </Badge>
-        </div>
+        </CardAction>
       </CardHeader>
-
-      <CardContent className="pt-0">
-        {props.alerts?.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Aucune alerte pour le moment.</p>
+      <CardContent>
+        {count === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Aucune alerte pour le moment.</p>
         ) : (
-          <div className="divide-y divide-slate-200/60">
+          <ul className="max-h-80 divide-y overflow-y-auto">
             {props.alerts.map((a) => (
-              <div key={`${a.type}-${a.id}`} className="flex items-center justify-between gap-4 py-3">
+              <li key={`${a.type}-${a.id}`} className="flex items-center justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    {a.avatarUrl ? (
-                      <AvatarImage src={a.avatarUrl} alt={a.driverName} className="h-full w-full rounded-full object-cover" />
-                    ) : null}
+                  <Avatar className="size-10">
+                    {a.avatarUrl ? <AvatarImage src={a.avatarUrl} alt={a.driverName} /> : null}
                     <AvatarFallback>{initials(a.driverName)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{a.driverName}</div>
-                    <div className="truncate text-xs text-slate-500 dark:text-slate-400">{a.location}</div>
+                    <div className="truncate text-sm font-semibold">{a.driverName}</div>
+                    <div className="truncate text-xs text-muted-foreground">{a.location}</div>
                   </div>
                 </div>
-
-                <div className="shrink-0 text-right">
-                  <div className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
+                <div className="flex max-w-[50%] shrink-0 flex-col items-end gap-1">
+                  <Badge
+                    variant={a.type === 'PAYMENT_OVERDUE' && a.severity === 'warning' ? 'orange' : 'red'}
+                    className="h-auto max-w-full whitespace-normal text-right"
+                    title={a.daysLate ? `${a.daysLate} jour${a.daysLate > 1 ? 's' : ''} de retard` : undefined}
+                  >
                     {a.label}
-                  </div>
-                  <div className="mt-1 text-xs font-semibold">
-                    {a.type === 'INCIDENT' ? (
-                      <Button
-                        type="button"
-                        onClick={() => props.onViewIncident(a)}
-                        className="inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-300"
-                      >
-                        Détails
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                    ) : a.amount !== undefined ? (
-                      <span className="text-red-600 dark:text-red-300">{formatXafLabel(a.amount)}</span>
-                    ) : null}
-                  </div>
+                  </Badge>
+                  {a.type === 'INCIDENT' ? (
+                    <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => props.onViewIncident(a)}>
+                      Détails
+                      <ChevronRight />
+                    </Button>
+                  ) : a.amount !== undefined ? (
+                    <span className="text-xs font-semibold text-warning-foreground">{formatXafLabel(a.amount)}</span>
+                  ) : null}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </CardContent>
     </Card>
@@ -302,407 +249,201 @@ function AlertesCard(props: { alerts: Alert[]; onViewIncident: (alert: Alert) =>
 }
 
 function TransactionStatusBadge(props: { tx: Transaction }) {
-  if (props.tx.type === 'EXPENSE') {
-    return (
-      <span className="inline-flex items-center rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500 dark:bg-slate-800/60 dark:text-slate-200">
-        Dépense
-      </span>
-    )
-  }
-  if (props.tx.status === 'VERIFIED') {
-    return (
-      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-emerald-500" />
-        Vérifié
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
-      <span className="mr-1 inline-block h-2 w-2 rounded-full bg-orange-500" />
-      En attente
-    </span>
-  )
+  if (props.tx.type === 'EXPENSE') return <Badge variant="secondary">Dépense</Badge>
+  if (props.tx.status === 'VERIFIED') return <Badge variant="green">Vérifié</Badge>
+  if (props.tx.status === 'REJECTED') return <Badge variant="red">Refusé</Badge>
+  return <Badge variant="orange">En attente</Badge>
 }
 
-function GrandPatronDashboard(props: {
-  overview: DashboardOverview
-  alerts: Alert[]
-  transactions: Transaction[]
-  onOpenPayment: () => void
-  onOpenIncident: () => void
-  onOpenInvitation: () => void
-  onViewAllPayments: () => void
-  onViewIncident: (alert: Alert) => void
-}) {
+function TransactionsCard(props: { transactions: Transaction[]; onViewAll: () => void }) {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="flex flex-col">
-          <EtatParcDonutCard fleetStatus={props.overview.fleetStatus} total={props.overview.fleet.total} />
-        </div>
-        <div className="flex flex-col gap-4">
-          <TresorerieCard treasury={props.overview.treasuryWeekly} />
-          <AlertesCard alerts={props.alerts} onViewIncident={props.onViewIncident} />
-        </div>
-      </div>
-
-      <div className="pt-1">
-        <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Actions Rapides</div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Button
-            type="button"
-            onClick={props.onOpenPayment}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
-          >
-            <CreditCard className="h-4 w-4" />
-            Saisir Paiement
-          </Button>
-          <Button
-            type="button"
-            onClick={props.onOpenIncident}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-800"
-          >
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            Signaler Incident
-          </Button>
-          <Button
-            type="button"
-            onClick={props.onOpenInvitation}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100 dark:hover:bg-slate-800"
-          >
-            <Users className="h-4 w-4 text-emerald-600" />
-            Inviter Investisseur
-          </Button>
-        </div>
-      </div>
-
-      <Card className="rounded-2xl">
-        <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-3">
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">Transactions Récentes</div>
-          <Button
-            type="button"
-            onClick={props.onViewAllPayments}
-            className="text-xs font-semibold text-blue-600 hover:underline"
-          >
+    <Card>
+      <CardHeader>
+        <CardTitle>Transactions récentes</CardTitle>
+        <CardAction>
+          <Button type="button" variant="link" size="sm" onClick={props.onViewAll}>
             Tout afficher
           </Button>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40">
-          {props.transactions?.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-slate-500">Aucune transaction récente.</p>
-          ) : (
-            <Table className="min-w-full text-xs">
-              <TableHeader className="bg-white dark:bg-slate-900/40">
-                <TableRow className="text-left text-slate-500 dark:text-slate-400">
-                  <TableHead className="px-5 py-3 font-semibold">CHAUFFEUR</TableHead>
-                  <TableHead className="px-5 py-3 font-semibold">DATE</TableHead>
-                  <TableHead className="px-5 py-3 font-semibold">STATUT</TableHead>
-                  <TableHead className="px-5 py-3 text-right font-semibold">MONTANT</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {props.transactions.map((tx) => {
-                  const isExpense = tx.type === 'EXPENSE'
-                  const sign = isExpense ? '-' : '+'
-                  const amountCls = isExpense
-                    ? 'text-red-600 dark:text-red-300'
-                    : 'text-emerald-600 dark:text-emerald-300'
-                  return (
-                    <TableRow key={tx.id} className="border-t border-slate-200 dark:border-slate-800">
-                      <TableCell className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            {tx.driver.avatarUrl ? (
-                              <AvatarImage
-                                src={tx.driver.avatarUrl}
-                                alt={tx.driver.fullName}
-                                className="h-8 w-8 object-cover"
-                              />
-                            ) : null}
-                            <AvatarFallback>{initials(tx.driver.fullName)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">
-                              {tx.driver.fullName}
-                            </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {props.transactions?.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Aucune transaction récente.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Conducteur</TableHead>
+                <TableHead className="hidden sm:table-cell">Date</TableHead>
+                <TableHead className="hidden sm:table-cell">Statut</TableHead>
+                <TableHead className="text-right">Montant</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.transactions.map((tx) => {
+                const isExpense = tx.type === 'EXPENSE'
+                return (
+                  <TableRow key={tx.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8">
+                          {tx.driver.avatarUrl ? <AvatarImage src={tx.driver.avatarUrl} alt={tx.driver.fullName} /> : null}
+                          <AvatarFallback className="text-xs">{initials(tx.driver.fullName)}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">{tx.driver.fullName}</div>
+                          <div className="mt-1 flex items-center gap-2 sm:hidden">
+                            <TransactionStatusBadge tx={tx} />
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="px-5 py-3 text-slate-500 dark:text-slate-400">
-                        {formatShortDate(tx.createdAt)}
-                      </TableCell>
-                      <TableCell className="px-5 py-3">
-                        <TransactionStatusBadge tx={tx} />
-                      </TableCell>
-                      <TableCell className={`px-5 py-3 text-right font-semibold ${amountCls}`}>
-                        {sign} {formatXaf(tx.amount)} XAF
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      </Card>
-    </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">{formatShortDate(tx.createdAt)}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <TransactionStatusBadge tx={tx} />
+                    </TableCell>
+                    <TableCell
+                      className={`whitespace-nowrap text-right font-bold tabular-nums ${isExpense ? 'text-muted-foreground' : 'text-success-foreground'}`}
+                    >
+                      {isExpense ? '−' : '+'} {formatXaf(tx.amount)} XAF
+                      <div className="text-xs font-normal text-muted-foreground sm:hidden">{formatShortDate(tx.createdAt)}</div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
-function InvestorDashboard() {
-  const kpi = { invested: '12.5M XAF', recovered: '10.5M XAF', pct: 83 }
-  const roiData = [
-    { name: 'S1', roi: 4 },
-    { name: 'S2', roi: 7 },
-    { name: 'S3', roi: 6 },
-    { name: 'S4', roi: 10 },
-    { name: 'S5', roi: 13 },
-    { name: 'S6', roi: 14 },
-  ]
-  const motos = [
-    { id: 'M1', model: 'Mototaxi 125cc', city: 'Douala', progress: 72 },
-    { id: 'M2', model: 'Mototaxi 150cc', city: 'Yaounde', progress: 46 },
-    { id: 'M3', model: 'Mototaxi 200cc', city: 'Bafoussam', progress: 88 },
-  ]
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="p-5 pb-3">
-          <CardTitle className="text-base">Portfolio</CardTitle>
-          <div className="mt-2 flex items-center justify-between gap-6">
-            <div>
-              <div className="text-xs font-medium text-slate-500">Montant Investi</div>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-50">{kpi.invested}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs font-medium text-slate-500">Montant Récupéré</div>
-              <div className="text-xl font-bold text-slate-900 dark:text-slate-50">{kpi.recovered}</div>
-              <div className="mt-1 text-sm font-semibold text-blue-600 dark:text-blue-300">{kpi.pct}%</div>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Card>
-        <CardHeader className="p-5 pb-3">
-          <CardTitle className="text-base">Evolution du ROI</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsLineChart data={roiData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.35)" />
-                <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
-                <Tooltip content={() => null} />
-                <Legend />
-                <Line type="monotone" dataKey="roi" name="ROI" stroke="#2563eb" strokeWidth={3} dot={false} />
-              </RechartsLineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {motos.map((m) => (
-          <Card key={m.id}>
-            <CardHeader className="p-5 pb-3">
-              <CardTitle className="text-base">{m.model}</CardTitle>
-              <div className="mt-1 text-xs font-medium text-slate-500">{m.city}</div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <Progress value={m.progress} className="h-3" />
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                  <span>Financement</span>
-                  <span>{m.progress}%</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ConducteurDashboard() {
-  const ownershipPct = 64
-  const status = ownershipPct >= 70 ? 'vert' : ownershipPct >= 40 ? 'orange' : 'rouge'
-  const badgeClasses =
-    status === 'vert'
-      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
-      : status === 'orange'
-        ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-200'
-        : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200'
-
-  const gaugeData = [
-    { name: 'Acquis', value: ownershipPct, color: '#16a34a' },
-    { name: 'Reste', value: 100 - ownershipPct, color: '#e2e8f0' },
-  ]
-
-  const payments = [
-    { id: 'p3', label: 'Paiement #3', amount: '12,500 XAF', date: '24 Oct' },
-    { id: 'p2', label: 'Paiement #2', amount: '10,000 XAF', date: '18 Oct' },
-    { id: 'p1', label: 'Paiement #1', amount: '8,500 XAF', date: '10 Oct' },
-  ]
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="p-5 pb-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-base">Progression de propriete</CardTitle>
-              <div className="mt-1 text-sm font-medium text-slate-500">Reste a payer ci-dessous</div>
-            </div>
-            <div className={['inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold', badgeClasses].join(' ')}>
-              Feu Tricolore
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="pt-0">
-          <div className="flex flex-col items-center gap-5 lg:flex-row lg:justify-between">
-            <div className="relative h-56 w-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Tooltip content={() => null} />
-                  <Pie data={gaugeData} dataKey="value" startAngle={90} endAngle={-270} innerRadius={70} outerRadius={95} stroke="none">
-                    {gaugeData.map((d, idx) => (
-                      <Cell key={d.name} fill={idx === 0 ? d.color : '#e2e8f0'} />
-                    ))}
-                    <Label
-                      position="center"
-                      content={() => (
-                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-900 dark:fill-slate-50">
-                          <tspan fontSize="22" fontWeight="900">
-                            {ownershipPct}%
-                          </tspan>
-                          <tspan fontSize="12" fontWeight="600" dy="18">
-                            acquis
-                          </tspan>
-                        </text>
-                      )}
-                    />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="w-full lg:max-w-sm">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/30">
-                <div className="text-xs font-medium text-slate-500">Reste a payer</div>
-                <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-50">3,60M XAF</div>
-                <div className="mt-2 text-sm font-medium text-slate-500">Objectif: 5,00M XAF</div>
-              </div>
-
-              <div className="mt-4 divide-y divide-slate-200/60 rounded-2xl border border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-950/30">
-                {payments.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between gap-4 p-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-50">{p.label}</div>
-                      <div className="truncate text-xs text-slate-500 dark:text-slate-400">{p.date}</div>
-                    </div>
-                    <div className="flex-none text-sm font-bold text-slate-900 dark:text-slate-50">{p.amount}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-function IncidentDetailModal(props: { alert: Alert; onClose: () => void }) {
+function IncidentDetailDialog(props: { alert: AlertItem | null; onClose: () => void; onResolved: () => void }) {
   const a = props.alert
+  const navigate = useNavigate()
+  const [resolving, setResolving] = useState(false)
+
+  const resolve = async () => {
+    if (!a) return
+    setResolving(true)
+    try {
+      await resolveIncident(a.id)
+      toast.success('Incident marqué comme résolu : le conducteur en est informé.')
+      props.onClose()
+      props.onResolved()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Impossible de clôturer cet incident.')
+    } finally {
+      setResolving(false)
+    }
+  }
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={props.onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300">
-              <AlertTriangle className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50">Détails de l'Incident</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Signalé le {formatShortDate(new Date().toISOString())}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={props.onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-800/60">
-            <Avatar className="h-14 w-14">
-              {a.avatarUrl ? (
-                <AvatarImage src={a.avatarUrl} alt={a.driverName} className="h-full w-full rounded-full object-cover" />
-              ) : null}
-              <AvatarFallback className="text-base">{initials(a.driverName)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="text-base font-bold text-slate-900 dark:text-slate-50">{a.driverName}</div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{a.location || 'Localisation inconnue'}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-              <div className="text-xs font-medium text-slate-500">Type</div>
-              <div className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-50">Incident</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-              <div className="text-xs font-medium text-slate-500">Statut</div>
-              <div className="mt-1">
-                <span className="inline-flex rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-200">
-                  {a.label}
+    <Dialog open={a !== null} onOpenChange={(open) => (!open ? props.onClose() : undefined)}>
+      <DialogContent className="sm:max-w-md">
+        {a ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <span className="flex size-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                  <AlertTriangle className="size-5" />
                 </span>
+                Détails de l&apos;incident
+              </DialogTitle>
+              <DialogDescription>
+                {a.createdAt ? `Signalé le ${formatShortDate(a.createdAt)}` : 'Incident signalé'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center gap-4 rounded-md bg-muted p-4">
+              <Avatar className="size-14">
+                {a.avatarUrl ? <AvatarImage src={a.avatarUrl} alt={a.driverName} /> : null}
+                <AvatarFallback className="text-base">{initials(a.driverName)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="text-base font-bold">{a.driverName}</div>
+                <div className="text-sm text-muted-foreground">{a.location || 'Localisation inconnue'}</div>
               </div>
             </div>
-          </div>
 
-          {a.amount !== undefined ? (
-            <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-              <div className="text-xs font-medium text-slate-500">Montant concerné</div>
-              <div className="mt-1 text-sm font-bold text-red-600 dark:text-red-300">{formatXafLabel(a.amount)}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-md border p-3">
+                <div className="text-xs font-medium text-muted-foreground">Type</div>
+                <div className="mt-1 text-sm font-bold">{a.incidentType ?? 'Incident'}</div>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="text-xs font-medium text-muted-foreground">Statut</div>
+                <Badge variant="red" className="mt-1">
+                  {a.label}
+                </Badge>
+              </div>
             </div>
-          ) : null}
-        </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <Button
-            type="button"
-            onClick={() => { props.onClose(); window.location.href = '/parc' }}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
-          >
-            Voir dans le parc
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            onClick={props.onClose}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
-            Fermer
-          </Button>
-        </div>
+            {a.motoMatricule ? (
+              <div className="rounded-md border p-3">
+                <div className="text-xs font-medium text-muted-foreground">Véhicule concerné</div>
+                <div className="mt-1 text-sm font-bold">{a.motoMatricule}</div>
+              </div>
+            ) : null}
+
+            {a.description ? (
+              <div className="rounded-md border p-3">
+                <div className="text-xs font-medium text-muted-foreground">Description</div>
+                <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">{a.description}</p>
+              </div>
+            ) : null}
+
+            {a.photoUrl ? (
+              <a href={a.photoUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-md border">
+                <img src={a.photoUrl} alt="Photo de l'incident" className="max-h-48 w-full object-cover" />
+              </a>
+            ) : null}
+
+            {a.amount !== undefined ? (
+              <div className="rounded-md border p-3">
+                <div className="text-xs font-medium text-muted-foreground">Montant concerné</div>
+                <div className="mt-1 text-sm font-bold text-warning-foreground">{formatXafLabel(a.amount)}</div>
+              </div>
+            ) : null}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={props.onClose}>
+                Fermer
+              </Button>
+              <Button type="button" variant="outline" disabled={resolving} onClick={() => void resolve()}>
+                <CheckCircle2 />
+                {resolving ? 'Clôture…' : 'Marquer comme résolu'}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  props.onClose()
+                  navigate('/parc')
+                }}
+              >
+                Voir dans le parc
+                <ChevronRight />
+              </Button>
+            </DialogFooter>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Chargement du tableau de bord">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-36 rounded-md" />
+        <Skeleton className="h-36 rounded-md" />
+        <Skeleton className="h-36 rounded-md" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Skeleton className="h-96 rounded-md" />
+        <Skeleton className="h-96 rounded-md" />
       </div>
     </div>
   )
@@ -710,119 +451,105 @@ function IncidentDetailModal(props: { alert: Alert; onClose: () => void }) {
 
 export default function DashboardPage(props: { theme: 'light' | 'dark'; onToggleTheme: () => void }) {
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [role, setRole] = useState<Role>('patron')
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [incidentOpen, setIncidentOpen] = useState(false)
   const [invitationOpen, setInvitationOpen] = useState(false)
-  const [selectedIncident, setSelectedIncident] = useState<Alert | null>(null)
+  const [selectedIncident, setSelectedIncident] = useState<AlertItem | null>(null)
 
   const { overview, alerts, transactions, loading, error, refresh } = useAdminDashboard()
 
-  const todayLabel = (() => {
-    const d = new Date()
-    const day = d.toLocaleDateString('en-GB', { day: '2-digit' })
-    const month = d.toLocaleDateString('en-GB', { month: 'short' })
-    const year = d.getFullYear()
-    return `${day} ${month}, ${year}`
-  })()
+  const todayLabel = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 
   return (
-    <SpotlightSection>
-      <div className="flex">
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} theme={props.theme} onToggleTheme={props.onToggleTheme} />
+    <AdminLayout
+      title="Tableau de bord"
+      description="Bon retour, Grand Patron. Voici l'activité d'aujourd'hui."
+      theme={props.theme}
+      onToggleTheme={props.onToggleTheme}
+      actions={
+        <Badge variant="outline" className="hidden h-9 px-3 text-sm sm:inline-flex">
+          {todayLabel}
+        </Badge>
+      }
+    >
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertDescription className="flex flex-wrap items-center gap-3">
+            {error}
+            <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
+              Réessayer
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-        <main className="flex-1 p-6">
-          <div className="hidden">
-            <Tabs role={role} onChange={setRole} />
+      {loading && !overview ? (
+        <DashboardSkeleton />
+      ) : overview ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <StatCard
+              title="Parc total"
+              value={String(overview.fleet.total)}
+              delta={formatDeltaPct(overview.fleet.deltaPct)}
+              deltaTone={deltaPctTone(overview.fleet.deltaPct)}
+              Icon={MapPin}
+            />
+            <StatCard
+              title="Investisseurs actifs"
+              value={String(overview.activeInvestors.count)}
+              delta={formatDeltaPct(overview.activeInvestors.deltaPct)}
+              deltaTone={deltaPctTone(overview.activeInvestors.deltaPct)}
+              Icon={Users}
+            />
+            <StatCard
+              title="Revenu mensuel"
+              value={formatXafLabel(overview.monthlyRevenue.amount, true)}
+              delta={formatDeltaPct(overview.monthlyRevenue.deltaPct)}
+              deltaTone={deltaPctTone(overview.monthlyRevenue.deltaPct)}
+              Icon={DollarSign}
+            />
           </div>
 
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Aperçu du Tableau de Bord</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Bon retour, Grand Patron. Voici l&apos;activité d&apos;aujourd&apos;hui.
-              </p>
-            </div>
-
-            <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
-              {todayLabel}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <EtatParcDonutCard fleetStatus={overview.fleetStatus} total={overview.fleet.total} />
+            <div className="flex min-w-0 flex-col gap-4">
+              <TresorerieCard treasury={overview.treasuryWeekly} />
+              <AlertesCard alerts={alerts} onViewIncident={setSelectedIncident} />
             </div>
           </div>
 
-          {error ? (
-            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 dark:border-red-900/50 dark:bg-red-950/40">
-              <p className="text-sm font-semibold text-red-700 dark:text-red-200">{error}</p>
-              <Button type="button" onClick={() => void refresh()} className="mt-3 text-sm font-semibold text-blue-600 hover:underline">
-                Réessayer
+          <section aria-labelledby="actions-rapides">
+            <h2 id="actions-rapides" className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Actions rapides
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Button type="button" size="lg" onClick={() => setPaymentOpen(true)}>
+                <CreditCard />
+                Saisir un paiement
+              </Button>
+              <Button type="button" size="lg" variant="outline" onClick={() => setIncidentOpen(true)}>
+                <AlertTriangle className="text-destructive" />
+                Signaler un incident
+              </Button>
+              <Button type="button" size="lg" variant="outline" onClick={() => setInvitationOpen(true)}>
+                <Users className="text-primary" />
+                Ajouter un utilisateur
               </Button>
             </div>
-          ) : null}
+          </section>
 
-          {loading && !overview ? (
-            <div className="flex min-h-[320px] items-center justify-center">
-              <p className="text-sm font-medium text-slate-500">Chargement du tableau de bord…</p>
-            </div>
-          ) : overview ? (
-            <>
-              <div className="grid gap-4 md:grid-cols-3">
-                <ParticleHover className="rounded-2xl">
-                  <TopStatCard
-                    title="Parc Total"
-                    value={String(overview.fleet.total)}
-                    delta={formatDeltaPct(overview.fleet.deltaPct)}
-                    deltaTone={deltaPctTone(overview.fleet.deltaPct)}
-                    Icon={MapPin}
-                  />
-                </ParticleHover>
-                <ParticleHover className="rounded-2xl">
-                  <TopStatCard
-                    title="Investisseurs Actifs"
-                    value={String(overview.activeInvestors.count)}
-                    delta={formatDeltaPct(overview.activeInvestors.deltaPct)}
-                    deltaTone={deltaPctTone(overview.activeInvestors.deltaPct)}
-                    Icon={Users}
-                  />
-                </ParticleHover>
-                <ParticleHover className="rounded-2xl">
-                  <TopStatCard
-                    title="Revenu Mensuel"
-                    value={formatXafLabel(overview.monthlyRevenue.amount, true)}
-                    delta={formatDeltaPct(overview.monthlyRevenue.deltaPct)}
-                    deltaTone={deltaPctTone(overview.monthlyRevenue.deltaPct)}
-                    Icon={DollarSign}
-                  />
-                </ParticleHover>
-              </div>
+          <Separator />
 
-              <div className="mt-5">
-                <GrandPatronDashboard
-                  overview={overview}
-                  alerts={alerts}
-                  transactions={transactions}
-                  onOpenPayment={() => setPaymentOpen(true)}
-                  onOpenIncident={() => setIncidentOpen(true)}
-                  onOpenInvitation={() => setInvitationOpen(true)}
-                  onViewAllPayments={() => navigate('/paiements')}
-                  onViewIncident={(alert) => setSelectedIncident(alert)}
-                />
-                <div className="hidden">
-                  <InvestorDashboard />
-                  <ConducteurDashboard />
-                </div>
-              </div>
-            </>
-          ) : null}
-        </main>
-      </div>
+          <TransactionsCard transactions={transactions} onViewAll={() => navigate('/paiements')} />
+        </>
+      ) : null}
 
       <PaymentModal isOpen={paymentOpen} onClose={() => setPaymentOpen(false)} onSuccess={() => void refresh()} />
       <IncidentModal isOpen={incidentOpen} onClose={() => setIncidentOpen(false)} onSuccess={() => void refresh()} />
       <InvitationModal isOpen={invitationOpen} onClose={() => setInvitationOpen(false)} onSuccess={() => void refresh()} />
-      {selectedIncident ? (
-        <IncidentDetailModal alert={selectedIncident} onClose={() => setSelectedIncident(null)} />
-      ) : null}
-    </SpotlightSection>
+      <IncidentDetailDialog alert={selectedIncident} onClose={() => setSelectedIncident(null)} onResolved={() => void refresh()} />
+    </AdminLayout>
   )
 }
-

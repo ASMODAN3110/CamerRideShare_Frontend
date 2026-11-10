@@ -13,3 +13,8 @@ export function createIncident(body: CreateIncidentBody): Promise<Incident> {
     body: JSON.stringify(body),
   })
 }
+
+/** PATCH /incidents/:id/resolve — l'administrateur clôture un incident (le conducteur en est informé). */
+export function resolveIncident(id: number): Promise<Incident> {
+  return apiRequest<Incident>(`/incidents/${id}/resolve`, { method: 'PATCH' })
+}
