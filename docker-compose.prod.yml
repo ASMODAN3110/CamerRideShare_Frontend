@@ -1,0 +1,33 @@
+# Production (VPS, derrière Traefik) : frontend. À copier en docker-compose.yml dans /opt/apps/CamerRideShare/Frontend/,
+# à côté du fichier .env (modèle : .env.vps.example) et du clone CamerRideShare_Frontend.
+services:
+  web:
+    image: camerrideshare-web:latest
+    container_name: camerrideshare-web
+    restart: unless-stopped
+    build:
+      context: ./CamerRideShare_Frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        # intégrée au build par Vite : après l'avoir changée dans .env, reconstruire (docker compose build web)
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL manquante dans .env}
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.camerrideshare-web.rule=Host(`${WEB_HOST:?WEB_HOST manquant dans .env}`)"
+      - "traefik.http.routers.camerrideshare-web.entrypoints=https"
+      - "traefik.http.routers.camerrideshare-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.camerrideshare-web.service=camerrideshare-web"
+      - "traefik.http.services.camerrideshare-web.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-net"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+networks:
+  traefik-net:
+    external: true

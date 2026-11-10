@@ -12,6 +12,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Vite intègre l'URL de l'API au moment du build (elle n'est pas lue à l'exécution) :
+# docker compose la transmet par `build.args` (voir DEPLOIEMENT.md du backend).
+ARG VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN npm run build
 
 
