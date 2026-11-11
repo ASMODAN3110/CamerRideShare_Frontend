@@ -12,6 +12,9 @@ services:
       args:
         # intégrée au build par Vite : après l'avoir changée dans .env, reconstruire (docker compose build web)
         VITE_API_URL: ${VITE_API_URL:?VITE_API_URL manquante dans .env}
+    environment:
+      # adresse interne de l'API (réseau traefik-net) : /uploads et /api y sont relayés
+      API_UPSTREAM: http://camerrideshare-api:3000
     networks:
       - traefik-net
     labels:

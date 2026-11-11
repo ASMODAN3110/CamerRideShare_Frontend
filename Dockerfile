@@ -23,7 +23,9 @@ RUN npm run build
 FROM nginx:alpine AS runner
 
 # Serveur web + fallback SPA + proxy vers /api (docker-compose: service "backend")
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+# L'image nginx remplace ${API_UPSTREAM} dans le modèle au démarrage (adresse interne de l'API pour /api et /uploads).
+COPY nginx/default.conf /etc/nginx/templates/default.conf.template
+ENV API_UPSTREAM=http://backend:3000
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
