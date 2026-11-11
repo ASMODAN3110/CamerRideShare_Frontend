@@ -1,0 +1,8 @@
+# Fichiers produits par la compilation LaTeX
+*.aux
+*.log
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
