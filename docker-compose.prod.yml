@@ -23,7 +23,7 @@ services:
       - "traefik.http.services.camerrideshare-web.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik-net"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 3s
       retries: 3
